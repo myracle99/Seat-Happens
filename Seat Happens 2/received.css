@@ -1,0 +1,67 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
+  background: url('webiste\ bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: black;
+}
+
+.logo {
+  height: 80px;
+}
+
+.home-icon {
+  height: 40px;
+  width: 40px;
+  cursor: pointer;
+}
+
+main {
+  text-align: center;
+  padding: 100px 20px 40px;
+}
+
+h1 {
+  color: #d9ff00;
+  font-size: 3rem;
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+.confirmation-text {
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+footer {
+  display: flex;
+  justify-content: space-around;
+  background-color: black;
+  padding: 20px;
+  font-size: 0.95rem;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.footer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  max-width: 300px;
+}
+
+.footer-icon {
+  height: 24px;
+  width: 24px;
+}

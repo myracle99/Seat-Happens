@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reservation Details - Ches Cafe</title>
+  <link rel="stylesheet" href="rdetails.css" />
+</head>
+<body style="background-image: url('website bg.png');">
+  <section class="page">
+    <header>
+      <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
+      <a href="homepage.html"><img src="home icon.png" alt="Home Icon" class="home-icon" /></a>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2 data-translate="almostDone">You're almost done!</h2>
+
+        <div class="summary-section">
+          <div class="summary-item" onclick="goToPage('reservedplace.html')">
+            <label data-translate="placeLabel">Place:</label>
+            <span id="selected-place">Select a place</span>
+          </div>
+          <div class="summary-item" onclick="goToPage('guests.html')">
+            <label data-translate="guestsLabel">Guests:</label>
+            <span id="guest-count">Select guests</span>
+          </div>
+          <div class="summary-item" onclick="goToPage('calendar.html')">
+            <label data-translate="dateLabel">Date:</label>
+            <span id="selected-date">Select a date</span>
+          </div>
+          <div class="summary-item" onclick="goToPage('time.html')">
+            <label data-translate="timeLabel">Time:</label>
+            <span id="selected-time">Select a time</span>
+          </div>
+        </div>
+
+        <form action="#" method="post" onsubmit="return validateForm()">
+          <div class="form-group">
+            <label for="name" data-translate="nameLabel">Name*</label>
+            <input type="text" id="name" name="name" required data-translate-placeholder="namePlaceholder" />
+          </div>
+          <div class="form-group">
+            <label for="phone" data-translate="phoneLabel">Phone Number*</label>
+            <input type="tel" id="phone" name="phone" required data-translate-placeholder="phonePlaceholder" />
+          </div>
+          <div class="form-group">
+            <label for="email" data-translate="emailLabel">Email Address*</label>
+            <input type="email" id="email" name="email" required data-translate-placeholder="emailPlaceholder" />
+          </div>
+          <div class="form-group">
+            <label for="notes" data-translate="notesLabel">Notes or Special Requests (optional)</label>
+            <textarea id="notes" name="notes" rows="3" data-translate-placeholder="notesPlaceholder"></textarea>
+          </div>
+          <button type="submit" class="submit-btn" data-translate="bookNowBtn">Book Now</button>
+        </form>
+      </div>
+    </main>
+
+    <footer>
+      <p><img src="location icon.png" alt="Location Icon" /> <span data-translate="address">Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</span></p>
+      <p><img src="call icon.png" alt="Phone Icon" /> <span data-translate="phone">0945 306 6376</span></p>
+      <p><img src="time icon.png" alt="Clock Icon" /> <span data-translate="hours">Monday-Sunday 10:00 AM - 10:00 PM</span></p>
+    </footer>
+  </section>
+
+  <!-- Include the translator script -->
+  <script src="langModal.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Retrieve all saved values from localStorage
+      const place = localStorage.getItem('selectedPlace');
+      const guests = localStorage.getItem('guestCount');
+      const date = localStorage.getItem('selectedDate');
+      const time = localStorage.getItem('selectedTime');
+
+      // Show Place
+      document.getElementById('selected-place').textContent = place || "Select a place";
+
+      // Show Guests with plural handling
+      if (guests) {
+        const guestNum = parseInt(guests, 10);
+        document.getElementById('guest-count').textContent = `${guestNum} guest${guestNum > 1 ? 's' : ''}`;
+      } else {
+        document.getElementById('guest-count').textContent = "Select guests";
+      }
+
+      // Show Date formatted nicely
+      if (date) {
+        const d = new Date(date);
+        if (!isNaN(d)) {
+          const options = { weekday: 'long', month: 'long', day: 'numeric' };
+          document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', options);
+        } else {
+          document.getElementById('selected-date').textContent = "Select a date";
+        }
+      } else {
+        document.getElementById('selected-date').textContent = "Select a date";
+      }
+
+      // Show Time
+      document.getElementById('selected-time').textContent = time || "Select a time";
+    });
+
+    function goToPage(page) {
+      // Preserve language selection when navigating
+      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
+      window.location.href = `${page}?lang=${currentLang}`;
+    }
+
+    function validateForm() {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+
+      if (!name || !phone || !email) {
+        alert("Please complete all required fields.");
+        return false;
+      }
+      
+      // On successful validation, preserve language for next page
+      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
+      // You can redirect to confirmation page with language parameter
+      setTimeout(() => {
+        window.location.href = `received.html?lang=${currentLang}`;
+      }, 500);
+      
+      return true;
+    }
+  </script>
+</body>
+</html>

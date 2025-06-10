@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Queue Report</title>
+  <link rel="stylesheet" href="dailyreportQ.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="back icon.png" alt="Back" class="icon back-icon" />
+      <div class="header-icons">
+        <img src="home icon.png" alt="Home" class="icon" />
+        <img src="profile icon.png" alt="Profile" class="icon" />
+      </div>
+    </header>
+
+    <main>
+      <h1>DAILY REPORT</h1>
+
+      <div class="top-buttons">
+        <input type="date" id="queueDate" class="red-button calendar-button" title="Choose Date" />
+        <a href="dailyreportR.html" class="red-button">Reservations</a>
+        <a href="dailyreportQ.html" class="red-button">Queue</a>
+        <button class="red-button" onclick="loadQueue()">LOAD QUEUE</button>
+      </div>
+
+      <div class="report-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Queue Number</th>
+              <th>Place</th>
+              <th>Number Of Guest</th>
+              <th>Time Registered</th>
+            </tr>
+          </thead>
+          <tbody id="queueBody">
+            <!-- Queue data will be loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function loadQueue() {
+      const selectedDate = document.getElementById('queueDate').value;
+      if (!selectedDate) {
+        alert("Please select a date to load the live queue.");
+        return;
+      }
+
+      console.log("Loading queue for date:", selectedDate);
+
+      // Simulate dynamic queue data
+      const tableBody = document.getElementById('queueBody');
+      tableBody.innerHTML = `
+        <tr>
+          <td>Q01</td>
+          <td>Indoor</td>
+          <td>2</td>
+          <td>10:45 AM</td>
+        </tr>
+       
+      `;
+    }
+  </script>
+</body>
+</html>
