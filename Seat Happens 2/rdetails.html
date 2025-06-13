@@ -36,22 +36,22 @@
           </div>
         </div>
 
-        <form action="#" method="post" onsubmit="return validateForm()">
+        <form id="reservationForm">
           <div class="form-group">
             <label for="name" data-translate="nameLabel">Name*</label>
-            <input type="text" id="name" name="name" required data-translate-placeholder="namePlaceholder" />
+            <input type="text" id="name" name="name" required />
           </div>
           <div class="form-group">
             <label for="phone" data-translate="phoneLabel">Phone Number*</label>
-            <input type="tel" id="phone" name="phone" required data-translate-placeholder="phonePlaceholder" />
+            <input type="tel" id="phone" name="phone" required />
           </div>
           <div class="form-group">
             <label for="email" data-translate="emailLabel">Email Address*</label>
-            <input type="email" id="email" name="email" required data-translate-placeholder="emailPlaceholder" />
+            <input type="email" id="email" name="email" required />
           </div>
           <div class="form-group">
             <label for="notes" data-translate="notesLabel">Notes or Special Requests (optional)</label>
-            <textarea id="notes" name="notes" rows="3" data-translate-placeholder="notesPlaceholder"></textarea>
+            <textarea id="notes" name="notes" rows="3"></textarea>
           </div>
           <button type="submit" class="submit-btn" data-translate="bookNowBtn">Book Now</button>
         </form>
@@ -65,69 +65,68 @@
     </footer>
   </section>
 
-  <!-- Include the translator script -->
+
   <script src="langModal.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Retrieve all saved values from localStorage
-      const place = localStorage.getItem('selectedPlace');
-      const guests = localStorage.getItem('guestCount');
-      const date = localStorage.getItem('selectedDate');
-      const time = localStorage.getItem('selectedTime');
+  <script type="module">
+  import { supabase } from './supabase.js';
 
-      // Show Place
-      document.getElementById('selected-place').textContent = place || "Select a place";
+  document.addEventListener('DOMContentLoaded', () => {
+    // Load saved reservation details
+    const place = localStorage.getItem('selectedPlace');
+    const guestCount = parseInt(localStorage.getItem('guestCount'), 10);
+    const reservationDate = localStorage.getItem('selectedDate');
+    const reservationTime = localStorage.getItem('selectedTime');
 
-      // Show Guests with plural handling
-      if (guests) {
-        const guestNum = parseInt(guests, 10);
-        document.getElementById('guest-count').textContent = `${guestNum} guest${guestNum > 1 ? 's' : ''}`;
-      } else {
-        document.getElementById('guest-count').textContent = "Select guests";
-      }
+    // Fill in summary section
+    document.getElementById('selected-place').textContent = place || 'Select a place';
+    document.getElementById('guest-count').textContent = guestCount ? `${guestCount} guest${guestCount > 1 ? 's' : ''}` : 'Select guests';
 
-      // Show Date formatted nicely
-      if (date) {
-        const d = new Date(date);
-        if (!isNaN(d)) {
-          const options = { weekday: 'long', month: 'long', day: 'numeric' };
-          document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', options);
-        } else {
-          document.getElementById('selected-date').textContent = "Select a date";
-        }
-      } else {
-        document.getElementById('selected-date').textContent = "Select a date";
-      }
-
-      // Show Time
-      document.getElementById('selected-time').textContent = time || "Select a time";
-    });
-
-    function goToPage(page) {
-      // Preserve language selection when navigating
-      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
-      window.location.href = `${page}?lang=${currentLang}`;
+    if (reservationDate) {
+      const d = new Date(reservationDate);
+      const options = { weekday: 'long', month: 'long', day: 'numeric' };
+      document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', options);
     }
 
-    function validateForm() {
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const email = document.getElementById("email").value.trim();
+    document.getElementById('selected-time').textContent = reservationTime || 'Select a time';
+
+    // Handle form submission
+    document.querySelector('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const notes = document.getElementById('notes').value.trim();
 
       if (!name || !phone || !email) {
-        alert("Please complete all required fields.");
-        return false;
+        alert('Please complete all required fields.');
+        return;
       }
-      
-      // On successful validation, preserve language for next page
-      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
-      // You can redirect to confirmation page with language parameter
-      setTimeout(() => {
+
+      const { data, error } = await supabase.from('reservations').insert([
+        {
+          place,
+          guest_count: guestCount,
+          reservation_date: reservationDate,
+          reservation_time: reservationTime,
+          name,
+          phone,
+          email,
+          notes: notes || null
+        }
+      ]);
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        alert('Failed to submit reservation. Please try again.');
+      } else {
+        console.log('Reservation saved:', data);
+        const currentLang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
         window.location.href = `received.html?lang=${currentLang}`;
-      }, 500);
-      
-      return true;
-    }
-  </script>
+      }
+    });
+  });
+</script>
+
 </body>
 </html>

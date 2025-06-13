@@ -317,7 +317,7 @@ class UniversalTranslator {
 
       try {
         // Create URL object to properly handle the href
-        const url = new URL(href, window.location.origin);
+        const url = new URL(href, window.location.href);
         url.searchParams.set('lang', lang);
         
         // Update the link with the new URL
