@@ -27,8 +27,8 @@ body {
     width: 50%;
     border: none;
     border-radius: 25px;
-    background: limegreen;
-    color: white;
+    background: rgb(236, 243, 236);
+    color: rgb(0, 0, 0);
     font-weight: bold;
 }
 .login-container button {
