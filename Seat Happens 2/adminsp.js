@@ -111,4 +111,54 @@ window.addEventListener('beforeunload', () => {
   adminsp.auth.signOut()
 })
 
+// Add this to adminsp.js
+export const setupFirstAdmin = async () => {
+  const ADMIN_EMAIL = "test@email.com";
+  const ADMIN_PASSWORD = "Testkolang_to123"; // Auto-generate secure password
+  
+  try {
+    // 1. Create auth user
+    const { data, error } = await adminsp.auth.signUp({
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      options: {
+        data: { is_super_admin: true }
+      }
+    });
+
+    if (error) throw error;
+
+    // 2. Add to admin_profiles table
+    const { error: dbError } = await adminsp.from('admin_profiles')
+      .insert({
+        user_id: data.user.id,
+        email: ADMIN_EMAIL,
+        role: 'super_admin',
+        created_at: new Date().toISOString()
+      });
+
+    if (dbError) throw dbError;
+
+    // 3. Securely output credentials (only show this once!)
+    console.log("🔐 Initial Admin Credentials (SAVE THESE IMMEDIATELY)");
+    console.log("Email: " + ADMIN_EMAIL);
+    console.log("Password: " + ADMIN_PASSWORD);
+    
+    return { email: ADMIN_EMAIL, password: ADMIN_PASSWORD };
+  } catch (error) {
+    console.error("Setup error:", error);
+    return null;
+  }
+};
+
+// Helper to generate strong passwords
+function generateStrongPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < 16; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
 export default adminsp
