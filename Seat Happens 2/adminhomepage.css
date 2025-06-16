@@ -79,3 +79,7 @@ main p {
   transform: translateY(-2px);
   box-shadow: 5px 5px 0 #111;
 }
+
+.no-deco {
+  text-decoration: none !important;
+}

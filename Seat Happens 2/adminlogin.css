@@ -41,3 +41,50 @@ body {
     box-shadow: 0 4px darkgreen;
     cursor: pointer;
 }
+
+/* Add these to your existing adminlogin.css */
+.success-message {
+  color: limegreen;
+  margin-bottom: 20px;
+  min-height: 20px;
+  font-weight: bold;
+}
+
+#add-admin-btn {
+  background: #ff6b00;
+  box-shadow: 0 4px #cc5500;
+}
+
+#add-admin-btn:hover {
+  background: #ff8000;
+}
+
+@media (max-width: 768px) {
+  .login-container {
+    width: 90%;
+    margin-top: 80px;
+  }
+  
+  .login-container input {
+    width: 90%;
+    padding: 12px;
+  }
+  
+  .login-container h1 {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo {
+    height: 50px;
+  }
+  
+  .home-icon, .user-icon {
+    height: 30px;
+  }
+  
+  .login-container {
+    margin-top: 60px;
+  }
+}
