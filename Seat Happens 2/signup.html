@@ -1,28 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sign Up</title>
-    <link rel="stylesheet" href="homepage.css" />
-  <script type="module" src="signin.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up - Ches Cafe</title>
+  <link rel="stylesheet" href="adminlogin.css">
 </head>
+<body>
   <header>
-    <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
+    <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo">
     <div class="icons">
       <a href="homepage.html" class="icon">
-        <img src="home icon.png" alt="Home" />
+        <img src="home icon.png" alt="Home" class="home-icon">
       </a>
-      <img src="profile icon.png" alt="User" class="icon" />
+      <img src="profile icon.png" alt="User" class="user-icon">
     </div>
   </header>
-<body>
-  <h1>Sign Up</h1>
-  <form id="signup-form">
-    <input type="email" name="email" placeholder="Email" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <input type="text" name="full_name" placeholder="Full Name" />
-    <button type="submit">Sign Up</button>
-  </form>
+
+  <div class="login-container">
+    <h1>SIGN UP</h1>
+    <div id="error-message" class="error-message"></div>
+    
+    <form id="signup-form">
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <input type="text" name="full_name" placeholder="Full Name">
+      
+      <button type="submit">SIGN UP</button>
+    </form>
+  </div>
+
+  <script type="module" src="signin.js"></script>
 </body>
 </html>

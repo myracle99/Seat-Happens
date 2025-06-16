@@ -1,6 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js'
 
-// Replace with your own Supabase URL and anon key
 const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w'
 const supabase = createClient(supabaseUrl, supabaseKey)
@@ -23,6 +22,7 @@ document.getElementById('signin-form')?.addEventListener('submit', async (e) => 
   }
 
   alert('Signed in successfully!');
+  window.location.href = "adminhomepage.html";
   // Redirect or handle session
 });
 
