@@ -127,6 +127,124 @@
     });
   });
 </script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Retrieve all saved values from localStorage
+      const place = localStorage.getItem('selectedPlace');
+      const guests = localStorage.getItem('guestCount');
+      const date = localStorage.getItem('selectedDate');
+      const time = localStorage.getItem('selectedTime');
+
+      // Show Place
+      document.getElementById('selected-place').textContent = place || "Select a place";
+
+      // Show Guests with proper translation support
+      if (guests) {
+        const guestNum = parseInt(guests, 10);
+        if (window.translator) {
+          const baseLang = window.translator.currentLang.split('-')[0];
+          const guestText = window.translator.getGuestText(guestNum, baseLang);
+          document.getElementById('guest-count').textContent = guestText;
+        } else {
+          // Fallback for English
+          if (guestNum === 1) {
+            document.getElementById('guest-count').textContent = "1 guest";
+          } else {
+            document.getElementById('guest-count').textContent = `${guestNum} guests`;
+          }
+        }
+      } else {
+        document.getElementById('guest-count').textContent = "Select guests";
+      }
+
+      // Show Date formatted nicely
+      if (date) {
+        const d = new Date(date + 'T00:00:00'); // Add time to avoid timezone issues
+        if (!isNaN(d)) {
+          const options = { weekday: 'long', month: 'long', day: 'numeric' };
+          document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', options);
+        } else {
+          document.getElementById('selected-date').textContent = "Select a date";
+        }
+      } else {
+        document.getElementById('selected-date').textContent = "Select a date";
+      }
+
+      // Show Time
+      document.getElementById('selected-time').textContent = time || "Select a time";
+    });
+
+    function goToPage(page) {
+      // Include current reservation data in URL parameters for proper flow
+      const guests = localStorage.getItem('guestCount');
+      const date = localStorage.getItem('selectedDate');
+      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
+      
+      let url = `${page}?lang=${currentLang}`;
+      
+      // Add relevant parameters based on the target page
+      if (page.includes('calendar.html') && guests) {
+        url += `&guests=${guests}`;
+      } else if (page.includes('reservedplace.html') && guests && date) {
+        url += `&guests=${guests}&date=${date}`;
+      } else if (page.includes('guests.html')) {
+        // No additional parameters needed for guests page
+      } else if (page.includes('time.html')) {
+        // No additional parameters needed for time page
+      }
+      
+      window.location.href = url;
+    }
+
+    function validateForm(event) {
+      event.preventDefault(); // Prevent default form submission
+      
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+
+      // Basic validation
+      if (!name || !phone || !email) {
+        alert("Please complete all required fields.");
+        return false;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alert("Please enter a valid email address.");
+        return false;
+      }
+
+      // Phone validation (basic)
+      const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+      if (!phoneRegex.test(phone)) {
+        alert("Please enter a valid phone number.");
+        return false;
+      }
+
+      // Store customer details in localStorage for confirmation page
+      localStorage.setItem('customerName', name);
+      localStorage.setItem('customerPhone', phone);
+      localStorage.setItem('customerEmail', email);
+      localStorage.setItem('customerNotes', notes);
+
+      // Show loading state
+      const submitBtn = document.querySelector('.submit-btn');
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Processing...';
+      submitBtn.disabled = true;
+
+      // Simulate processing time and redirect
+      setTimeout(() => {
+        const currentLang = window.translator ? window.translator.currentLang : 'en-US';
+        window.location.href = `received.html?lang=${currentLang}`;
+      }, 1000);
+      
+      return false; // Prevent actual form submission since we're handling it manually
+    }
+  </script>
 
 </body>
 </html>

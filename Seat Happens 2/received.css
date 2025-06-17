@@ -1,9 +1,22 @@
-body {
+@import url('https://fonts.googleapis.com/css2?family=Ephesis&display=swap');
+
+html, body {
+  height: 100%;
   margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: white;
   background: url('webiste\ bg.jpg') no-repeat center center fixed;
   background-size: cover;
+}
+
+.ephesis-regular {
+  font-family: 'Ephesis', cursive;
+  font-size: 3.5rem;
+  color: #d9ff00;
+  margin-bottom: 20px;
 }
 
 header {
@@ -25,15 +38,13 @@ header {
 }
 
 main {
+  flex: 1;
   text-align: center;
-  padding: 100px 20px 40px;
+  padding: 60px 20px 40px;
 }
 
-h1 {
-  color: #d9ff00;
-  font-size: 3rem;
-  margin-bottom: 30px;
-  font-weight: 600;
+.animation-container {
+  margin-bottom: 10px;
 }
 
 .confirmation-text {
@@ -43,25 +54,28 @@ h1 {
   font-weight: 500;
 }
 
+/* Footer */
 footer {
   display: flex;
-  justify-content: space-around;
-  background-color: black;
-  padding: 20px;
-  font-size: 0.95rem;
-  flex-wrap: wrap;
-  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  font-size: 14px;
+  color: #fff;
+  padding: 20px 10px;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.footer-item {
+footer p {
   display: flex;
   align-items: center;
-  gap: 10px;
-  text-align: left;
-  max-width: 300px;
+  gap: 5px;
+  margin: 0;
 }
 
-.footer-icon {
-  height: 24px;
-  width: 24px;
+footer img {
+  width: 16px;
+  vertical-align: middle;
 }
