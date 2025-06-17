@@ -10,114 +10,27 @@
   <header>
     <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo">
     <div class="icons">
-      <a href="adminhomepage.html" class="icon">
+      <a href="adminhomepage.html" class="icon"> 
         <img src="home icon.png" alt="Home" class="home-icon">
       </a>
-      <img src="profile icon.png" alt="User" class="user-icon" id="profile-icon">
+      <img src="profile icon.png" alt="User" class="user-icon" id="profile-icon"> 
     </div>
   </header>
 
   <div class="login-container">
     <h1>ADD ADMIN</h1>
     <div id="error-message" class="error-message"></div>
-    <div id="success-message" class="success-message"></div>
+    <div id="success-message" class="success-message"></div> 
     
-    <form id="add-admin-form">
-      <input type="email" name="email" placeholder="Admin Email" required>
+    <form id="signup-form">
+      <input type="email" name="email" placeholder="Admin Email" required> 
       <input type="password" name="password" placeholder="Password (min 8 characters)" required>
-      <input type="text" name="full_name" placeholder="Full Name" required>
+      <input type="text" name="full_name" placeholder="Full Name" required> 
       
-      <button type="submit" id="add-admin-btn">ADD ADMIN</button>
+      <button type="submit" class="green-button">ADD ADMIN</button> 
     </form>
   </div>
 
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js'
-
-    const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w'
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    document.getElementById('add-admin-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const errorElement = document.getElementById('error-message');
-      const successElement = document.getElementById('success-message');
-      errorElement.textContent = '';
-      successElement.textContent = '';
-
-      const email = e.target.email.value.trim();
-      const password = e.target.password.value;
-      const fullName = e.target.full_name.value.trim();
-
-      // Validation checks
-      if (!email || !password || !fullName) {
-        errorElement.textContent = "All fields are required.";
-        return;
-      }
-
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errorElement.textContent = "Invalid email format. Please enter a valid email.";
-        return;
-      }
-
-      if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-        errorElement.textContent = "Password must be at least 8 characters with uppercase, lowercase, and a special character.";
-        return;
-      }
-
-      try {
-        // Check if email already exists
-        const { data: existingUser, error: checkError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (existingUser) {
-          errorElement.textContent = "Email already in use. Please use a different email.";
-          return;
-        }
-
-        // Create new admin user
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              role: 'admin' // Custom metadata for admin role
-            }
-          }
-        });
-
-        if (signUpError) throw signUpError;
-
-        // Insert into profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            user_id: signUpData.user.id,
-            email: email,
-            full_name: fullName,
-            role: 'admin',
-            created_at: new Date().toISOString()
-          }]);
-
-        if (profileError) throw profileError;
-
-        successElement.textContent = "Admin added successfully!";
-        e.target.reset();
-        
-      } catch (error) {
-        errorElement.textContent = error.message || "Failed to add admin. Please try again.";
-        console.error("Add admin error:", error);
-      }
-    });
-
-    // Profile icon click handler
-    document.getElementById('profile-icon')?.addEventListener('click', () => {
-      window.location.href = "admin-profile.html";
-    });
-  </script>
+  <script type="module" src="signin.js"></script>
 </body>
 </html>
