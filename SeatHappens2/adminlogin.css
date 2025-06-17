@@ -1,0 +1,43 @@
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: url('webiste\ bg.jpg') no-repeat center center fixed;
+    background-size: cover;
+    color: white;
+}
+.logo, .home-icon, .user-icon {
+    position: absolute;
+    top: 20px;
+}
+.logo { left: 20px; height: 60px; }
+.home-icon { right: 60px; height: 40px; }
+.user-icon { right: 20px; height: 40px; }
+.login-container {
+    margin-top: 150px;
+    text-align: center;
+}
+.login-container h1 {
+    font-size: 30px;
+}
+.login-container input {
+    display: block;
+    margin: 20px auto;
+    padding: 15px;
+    width: 50%;
+    border: none;
+    border-radius: 25px;
+    background: rgb(236, 243, 236);
+    color: rgb(0, 0, 0);
+    font-weight: bold;
+}
+.login-container button {
+    background: limegreen;
+    color: black;
+    font-weight: bold;
+    padding: 15px 40px;
+    border: none;
+    border-radius: 25px;
+    box-shadow: 0 4px darkgreen;
+    cursor: pointer;
+}

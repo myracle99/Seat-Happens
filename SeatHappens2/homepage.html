@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ches Cafe Restaurant</title>
+  <link rel="stylesheet" href="homepage.css" />
+</head>
+<body>
+  <header>
+    <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
+    <div class="icons">
+      <!-- Language selector button with current language indicator -->
+      <button id="langBtn" class="icon lang-btn" title="Select Language">
+        🌐 <span id="currentLang"></span>
+      </button>
+      <a href="homepage.html" class="icon">
+        <img src="home icon.png" alt="Home" />
+      </a>
+      <img src="profile icon.png" alt="User" class="icon" />
+
+      <a href="signin.html" class="signin-btn">Sign In</a>
+    </div>
+  </header>
+
+  <main class="content">
+    <h1 data-translate="welcome">WELCOME TO</h1>
+    <h2 data-translate="title">CHES CAFE RESTAURANT</h2>
+    <p class="tagline" data-translate="tagline">More Than a Café. It's Your Tanay Escape</p>
+
+    <div class="buttons">
+      <a href="aboutus.html" class="btn" data-translate="about">ABOUT US</a>
+      <a href="booknow.html" class="btn" data-translate="book">BOOK NOW</a>
+      <a href="queuec.html" class="btn" data-translate="queue">VIEW QUEUE</a>
+    </div>
+  </main>
+
+  <!-- Language Selection Modal -->
+  <div id="langModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" id="closeModal">&times;</span>
+      <h3 data-translate="selectLang">Select Your Language</h3>
+      <div class="language-grid">
+        <div class="lang-option" data-lang="en-US"><span class="flag">🇺🇸</span> English (US)</div>
+        <div class="lang-option" data-lang="en-UK"><span class="flag">🇬🇧</span> English (UK)</div>
+        <div class="lang-option" data-lang="fr"><span class="flag">🇫🇷</span> Français</div>
+        <div class="lang-option" data-lang="es"><span class="flag">🇪🇸</span> Español</div>
+        <div class="lang-option" data-lang="zh"><span class="flag">🇨🇳</span> 中文</div>
+        <div class="lang-option" data-lang="ja"><span class="flag">🇯🇵</span> 日本語</div>
+        <div class="lang-option" data-lang="it"><span class="flag">🇮🇹</span> Italiano</div>
+        <div class="lang-option" data-lang="de"><span class="flag">🇩🇪</span> Deutsch</div>
+        <div class="lang-option" data-lang="pt-PT"><span class="flag">🇵🇹</span> Português (PT)</div>
+        <div class="lang-option" data-lang="pt-BR"><span class="flag">🇧🇷</span> Português (BR)</div>
+        <div class="lang-option" data-lang="nl"><span class="flag">🇳🇱</span> Nederlands</div>
+        <div class="lang-option" data-lang="pl"><span class="flag">🇵🇱</span> Polski</div>
+        <div class="lang-option" data-lang="ro"><span class="flag">🇷🇴</span> Română</div>
+        <div class="lang-option" data-lang="sv"><span class="flag">🇸🇪</span> Svenska</div>
+        <div class="lang-option" data-lang="fi"><span class="flag">🇫🇮</span> Suomi</div>
+        <div class="lang-option" data-lang="da"><span class="flag">🇩🇰</span> Dansk</div>
+        <div class="lang-option" data-lang="no"><span class="flag">🇳🇴</span> Norsk</div>
+        <div class="lang-option" data-lang="cs"><span class="flag">🇨🇿</span> Čeština</div>
+        <div class="lang-option" data-lang="hu"><span class="flag">🇭🇺</span> Magyar</div>
+        <div class="lang-option" data-lang="el"><span class="flag">🇬🇷</span> Ελληνικά</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include the external translator script -->
+  <script src="langModal.js"></script>
+</body>
+</html>

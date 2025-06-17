@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reserve Place - Ches Cafe</title>
+  <link rel="stylesheet" href="reservedplace.css" />
+</head>
+<body>
+  <section class="page" style="background-image: url('756b435b-1f0c-4514-a63a-4a0fc3017407.png');">
+    <header>
+      <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
+      <a href="homepage.html"><img src="home icon.png" alt="Home Icon" class="home-icon" /></a>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2>
+          <span data-translate="whatTime">What time would</span> <span id="guest-count" class="red-text">you</span> <span data-translate="joiningUs">be joining us?</span> <span data-translate="on">on</span>
+          <span id="selected-date" class="red-text">Sunday, May 25</span>?
+        </h2>
+
+        <p data-translate="reserveFor">What would you like to reserve for?</p>
+        <div class="button-group">
+          <button onclick="selectPlace('INDOOR')" data-translate="indoor">INDOOR</button>
+          <button onclick="selectPlace('OUTDOOR')" data-translate="outdoor">OUTDOOR</button>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p><img src="location icon.png" alt="Location Icon" /> <span data-translate="address">Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</span></p>
+      <p><img src="call icon.png" alt="Phone Icon" /> <span data-translate="phone">0945 306 6376</span></p>
+      <p><img src="time icon.png" alt="Clock Icon" /> <span data-translate="hours">Monday-Sunday 10:00 AM - 10:00 PM</span></p>
+    </footer>
+  </section>
+
+  <!-- Include the translator script -->
+  <script src="langModal.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const guests = parseInt(params.get('guests')) || parseInt(localStorage.getItem('guestCount')) || 2;
+    const date = params.get('date') || localStorage.getItem('selectedDate');
+
+    // Wait for translator to be initialized
+    window.addEventListener('DOMContentLoaded', () => {
+      // Update guest count with proper translation
+      updateGuestCount();
+      
+      // Update date display
+      if (date) {
+        const d = new Date(date);
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        const formattedDate = d.toLocaleDateString('en-US', options);
+        document.getElementById("selected-date").textContent = formattedDate;
+      }
+    });
+
+    function updateGuestCount() {
+      const guestCountElement = document.getElementById("guest-count");
+      if (window.translator) {
+        const baseLang = window.translator.currentLang.split('-')[0];
+        const guestText = window.translator.getGuestText(guests, baseLang);
+        guestCountElement.textContent = guestText;
+      } else {
+        // Fallback for English
+        let guestText = "you";
+        if (guests === 1) guestText = "you";
+        else if (guests === 2) guestText = "the 2 of you";
+        else guestText = `all ${guests} of you`;
+        guestCountElement.textContent = guestText;
+      }
+    }
+
+    function selectPlace(place) {
+      localStorage.setItem("selectedPlace", place);
+      localStorage.setItem("guestCount", guests);
+      if (date) localStorage.setItem("selectedDate", date);
+      
+      // Preserve language selection
+      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
+      window.location.href = `time.html?lang=${currentLang}`;
+    }
+  </script>
+</body>
+</html>

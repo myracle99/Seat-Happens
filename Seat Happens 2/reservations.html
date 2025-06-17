@@ -1,0 +1,78 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reservations</title>
+  <link rel="stylesheet" href="adminhomepage.css" />
+  <style>
+    .reservations-table {
+      width: 100%;
+      margin-top: 40px;
+      border-collapse: collapse;
+      background-color: rgba(0, 0, 0, 0.6);
+    }
+
+    .reservations-table th,
+    .reservations-table td {
+      padding: 12px 15px;
+      border: 1px solid white;
+      text-align: center;
+    }
+
+    .reservations-table th {
+      background-color: rgba(0, 255, 0, 0.3);
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .reservations-table td {
+      font-size: 15px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a href="adminhomepage.html"><img src="back icon.png" alt="Back" class="icon back-icon"></a>
+      <div class="header-icons">
+        <a href="homepage.html"><img src="home icon.png" alt="Home" class="icon"></a>
+        <a href="adminprofile.html"><img src="profile icon.png" alt="Profile" class="icon"></a>
+      </div>
+    </header>
+
+    <main>
+      <h1>RESERVATIONS</h1>
+      <p>View and manage all customer reservations below</p>
+
+      <div class="table-container">
+        <table class="reservations-table">
+          <thead>
+            <tr>
+              <th>Place</th>
+              <th>Guests</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="reservationBody">
+            <!-- JavaScript will inject rows here -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="reservation.js"></script>
+
+</body>
+</html>
