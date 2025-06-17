@@ -1,29 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Daily Report</title>
-  <link rel="stylesheet" href="dailyreportR.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Report - Reservations</title>
+  <link rel="stylesheet" href="dailyreportR.css" />
 </head>
 <body>
   <div class="container">
     <header>
-      <img src="back icon.png" alt="Back" class="icon back-icon">
+      <img src="back icon.png" alt="Back" class="icon back-icon" href="adminhomepage.html"/>
       <div class="header-icons">
-        <img src="home icon.png" alt="Home" class="icon">
-        <img src="profile icon.png" alt="Profile" class="icon">
+        <img src="home icon.png" alt="Home" class="icon" />
+        <img src="profile icon.png" alt="Profile" class="icon" />
       </div>
     </header>
 
     <main>
-      <h1>DAILY REPORT</h1>
+      <h1>DAILY REPORT - RESERVATIONS</h1>
 
       <div class="top-buttons">
-        <input type="date" id="reportDate" class="red-button calendar-button" title="Choose Date">
+        <input type="date" id="reportDate" class="red-button calendar-button" title="Choose Date" />
         <a href="dailyreportR.html" class="red-button">Reservations</a>
         <a href="dailyreportQ.html" class="red-button">Queue</a>
         <button class="red-button" onclick="loadReport()">LOAD REPORT</button>
+        <button class="red-button" onclick="viewArchives()">View Archives</button>
+        <button class="red-button" onclick="viewDeleted()">View Deleted</button>
       </div>
 
       <div class="report-table">
@@ -31,49 +33,197 @@
           <thead>
             <tr>
               <th>Queue Number</th>
+              <th>Name of Customer</th>
               <th>Email</th>
+              <th>Phone Number</th>
+              <th>Number of Guests</th>
               <th>Place</th>
-              <th>Number Of Guest</th>
               <th>Time Registered</th>
             </tr>
           </thead>
-          <tbody id="reportBody">
-            <!-- Data will be inserted dynamically via JS/backend -->
-          </tbody>
+          <tbody id="reportBody"></tbody>
         </table>
       </div>
     </main>
   </div>
 
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+  <div class="popup" id="popup">
+    <p id="popupInfo"></p>
+    <div id="popupTimestamps"></div>
+    <button onclick="archiveEntry()" id="archiveButton">Archive</button>
+    <button onclick="deleteEntry()" id="deleteButton">Delete</button>
+    <button onclick="restoreEntry()" id="restoreButton">Restore</button>
+    <button onclick="closePopup()">Close</button>
+  </div>
+
   <script>
+    let selectedRowData = null;
+    const archives = [];
+    const deleted = [];
+    let currentView = 'active';
+
+    const reservationData = [
+      {
+        id: 'R01',
+        place: 'Indoor',
+        guests: 5,
+        time: '9:00 AM',
+        email: 'res1@example.com',
+        phone: '09123456700',
+        name: 'Alice Reyes'
+      },
+      {
+        id: 'R02',
+        place: 'Outdoor',
+        guests: 3,
+        time: '10:15 AM',
+        email: 'res2@example.com',
+        phone: '09987654300',
+        name: 'Carlos Diaz'
+      }
+    ];
+
     function loadReport() {
+      currentView = 'active';
       const selectedDate = document.getElementById('reportDate').value;
-      if (!selectedDate) {
-        alert("Please select a date to load the report.");
+      if (!selectedDate) return alert("Please select a date.");
+
+      const tableBody = document.getElementById('reportBody');
+      tableBody.innerHTML = '';
+
+      reservationData.forEach(row => {
+        if (!archives.find(a => a.id === row.id) && !deleted.find(d => d.id === row.id)) {
+          const tr = document.createElement('tr');
+          tr.classList.add('highlight-row');
+          tr.innerHTML = `
+            <td>${row.id}</td>
+            <td>${row.name}</td>
+            <td>${row.email}</td>
+            <td>${row.phone}</td>
+            <td>${row.guests}</td>
+            <td>${row.place}</td>
+            <td>${row.time}</td>
+          `;
+          tr.onclick = () => openPopup(row);
+          tableBody.appendChild(tr);
+        }
+      });
+    }
+
+    function openPopup(rowData) {
+      selectedRowData = { ...rowData };
+      const archived = archives.find(a => a.id === rowData.id);
+      const deletedEntry = deleted.find(d => d.id === rowData.id);
+
+      document.getElementById('popupInfo').textContent = `Reservation Entry: ${rowData.id}`;
+      document.getElementById('popupTimestamps').innerHTML = `
+        <small>
+          ${archived ? `Archived At: ${archived.archivedAt}<br>` : ''}
+          ${deletedEntry ? `Deleted At: ${deletedEntry.deletedAt}<br>` : ''}
+        </small>
+      `;
+
+      // Show/hide buttons based on current view
+      const archiveBtn = document.getElementById('archiveButton');
+      const deleteBtn = document.getElementById('deleteButton');
+      const restoreBtn = document.getElementById('restoreButton');
+      
+      if (currentView === 'active') {
+        // Active reservations: show Archive and Delete, hide Restore
+        archiveBtn.style.display = 'inline-block';
+        deleteBtn.style.display = 'inline-block';
+        restoreBtn.style.display = 'none';
+      } else if (currentView === 'archived' || currentView === 'deleted') {
+        // Archived or Deleted view: show only Restore
+        archiveBtn.style.display = 'none';
+        deleteBtn.style.display = 'none';
+        restoreBtn.style.display = 'inline-block';
+      }
+
+      document.getElementById('popup').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    function archiveEntry() {
+      const now = new Date().toLocaleString();
+      if (!archives.find(a => a.id === selectedRowData.id)) {
+        archives.push({ ...selectedRowData, archivedAt: now });
+        alert(`Archived ${selectedRowData.id}`);
+      }
+      closePopup();
+      loadReport();
+    }
+
+    function deleteEntry() {
+      const now = new Date().toLocaleString();
+      if (!deleted.find(d => d.id === selectedRowData.id)) {
+        deleted.push({ ...selectedRowData, deletedAt: now });
+        alert(`Deleted ${selectedRowData.id}`);
+      }
+      closePopup();
+      loadReport();
+    }
+
+    function restoreEntry() {
+      const id = selectedRowData.id;
+      const archiveIndex = archives.findIndex(a => a.id === id);
+      const deleteIndex = deleted.findIndex(d => d.id === id);
+
+      if (archiveIndex !== -1) archives.splice(archiveIndex, 1);
+      if (deleteIndex !== -1) deleted.splice(deleteIndex, 1);
+
+      alert(`Restored ${id}`);
+      closePopup();
+      
+      // Refresh the current view
+      if (currentView === 'archived') {
+        viewArchives();
+      } else if (currentView === 'deleted') {
+        viewDeleted();
+      } else {
+        loadReport();
+      }
+    }
+
+    function viewArchives() {
+      currentView = 'archived';
+      renderList(archives, 'archived');
+    }
+
+    function viewDeleted() {
+      currentView = 'deleted';
+      renderList(deleted, 'deleted');
+    }
+
+    function renderList(list, type) {
+      const tableBody = document.getElementById('reportBody');
+      tableBody.innerHTML = '';
+      if (list.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7">No ${type} reservation data found.</td></tr>`;
         return;
       }
 
-      // Placeholder for future DB fetch
-      console.log("Loading report for date:", selectedDate);
-
-      // Simulate loading data dynamically (demo row)
-      const tableBody = document.getElementById('reportBody');
-      tableBody.innerHTML = `
-        <tr>
-          <td>ID01</td>
-          <td>email@example.com</td>
-          <td>Indoor</td>
-          <td>5</td>
-          <td>9:00 AM</td>
-        </tr>
-        <tr>
-          <td>ID02</td>
-          <td>sample@gmail.com</td>
-          <td>Graduates</td>
-          <td>3</td>
-          <td>10:15 AM</td>
-        </tr>
-      `;
+      list.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.classList.add('highlight-row');
+        tr.innerHTML = `
+          <td>${row.id}</td>
+          <td>${row.name}</td>
+          <td>${row.email}</td>
+          <td>${row.phone}</td>
+          <td>${row.guests}</td>
+          <td>${row.place}</td>
+          <td>${row.time}</td>
+        `;
+        tr.onclick = () => openPopup(row);
+        tableBody.appendChild(tr);
+      });
     }
   </script>
 </body>

@@ -87,3 +87,49 @@ th {
   color: white;
   border-radius: 10px 10px 0 0;
 }
+
+.highlight-row:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+.popup {
+  display: none;
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -30%);
+  background-color: #222;
+  color: white;
+  border: 1px solid #444;
+  padding: 20px;
+  z-index: 1000;
+  border-radius: 10px;
+  box-shadow: 0 0 10px black;
+}
+
+.popup button {
+  margin: 5px;
+  padding: 8px 12px;
+  background-color: crimson;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.popup button:hover {
+  background-color: #d10000;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}

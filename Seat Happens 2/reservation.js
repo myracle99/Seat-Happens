@@ -10,21 +10,97 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 
 // Add one row to the table
-function addReservationToTable({ place, guest_count, reservation_date, reservation_time, name, phone, email, notes }) {
+function addReservationToTable(reservation) {
   const row = document.createElement('tr')
+
   row.innerHTML = `
-    <td>${place}</td>
-    <td>${guest_count}</td>
-    <td>${reservation_date}</td>
-    <td>${reservation_time}</td>
-    <td>${name}</td>
-    <td>${phone}</td>
-    <td>${email}</td>
-    <td>${notes || ''}</td>
+    <td>${reservation.place}</td>
+    <td>${reservation.guest_count}</td>
+    <td>${reservation.reservation_date}</td>
+    <td>${reservation.reservation_time}</td>
+    <td>${reservation.name}</td>
+    <td>${reservation.phone}</td>
+    <td>${reservation.email}</td>
+    <td>${reservation.notes || ''}</td>
+    <td>${formatStatus(reservation.status)}</td>
+    <td>
+    <button class="complete-btn" data-id="${reservation.id}">✔ Complete</button>
+    <button class="cancel-btn" data-id="${reservation.id}">✖ Cancel</button>
+    </td>
   `
-  reservationBody.appendChild(row)
+  function formatStatus(status) {
+  if (!status || status.trim() === '') return 'Pending'
+  if (status.toLowerCase() === 'completed') return '✅ Completed'
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
+
+  const completeBtn = row.querySelector('.complete-btn')
+  const cancelBtn = row.querySelector('.cancel-btn')
+
+  completeBtn.addEventListener('click', async () => {
+    await updateReservationStatus(reservation.id, 'completed')
+  })
+
+  cancelBtn.addEventListener('click', async () => {
+    await updateReservationStatus(reservation.id, 'cancelled')
+  })
+
+  reservationBody.appendChild(row)
+
+ completeBtn.addEventListener('click', async () => {
+  const confirmComplete = confirm("Mark this reservation as completed?")
+  if (confirmComplete) {
+    await updateReservationStatus(reservation.id, 'completed', row)
+  }
+})
+
+cancelBtn.addEventListener('click', async () => {
+  const confirmCancel = confirm("Cancel and remove this reservation?")
+  if (confirmCancel) {
+    await updateReservationStatus(reservation.id, 'cancelled', row)
+  }
+})
+
+}
+
+
+async function updateReservationStatus(id, newStatus, rowElement = null) {
+  if (newStatus === 'cancelled') {
+    const { data, error } = await supabase
+      .from('reservations')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('❌ Supabase delete error:', error)
+      alert(`Failed to delete: ${error.message}`)
+      return
+    }
+
+    console.log('✅ Deleted from Supabase:', data)
+    if (rowElement) rowElement.remove()
+  } else if (newStatus === 'completed') {
+    const { data, error } = await supabase
+      .from('reservations')
+      .update({ status: 'completed' })
+      .eq('id', id)
+
+    if (error) {
+      console.error('❌ Supabase update error:', error)
+      alert(`Failed to update status: ${error.message}`)
+      return
+    }
+
+    console.log('✅ Marked as completed:', data)
+
+    if (rowElement) {
+      // Optional: visually indicate completion and disable buttons
+      rowElement.classList.add('completed')
+      rowElement.querySelectorAll('button').forEach(btn => btn.disabled = true)
+    }
+  }
+}
 
 
 
@@ -54,6 +130,7 @@ async function loadReservations() {
     addReservationToTable(item)
   })
 }
+
 
 
 // Fetch data on page load
