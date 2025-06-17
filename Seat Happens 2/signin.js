@@ -44,13 +44,15 @@ document.getElementById('signin-form')?.addEventListener('submit', async (e) => 
   window.location.href = "adminhomepage.html";
 });
 
-// SIGN UP logic
+// ADD ADMIN logic
 document.getElementById('signup-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const email = e.target.email.value.trim();
   const password = e.target.password.value;
   const fullName = e.target.full_name.value.trim();
+  const errorElement = document.getElementById('error-message');
+  errorElement.textContent = ''; // Clear previous errors
 
   // Form validation
   if (!email || !password || !fullName) {
@@ -74,7 +76,7 @@ document.getElementById('signup-form')?.addEventListener('submit', async (e) => 
   });
 
   if (error) {
-    alert('Sign-up error: ' + error.message);
+    errorElement.textContent = 'Add admin error: ' + error.message;
     return;
   }
 
