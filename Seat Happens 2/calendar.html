@@ -201,7 +201,8 @@
           const mm = String(month + 1).padStart(2, '0');
           const dd = String(day).padStart(2, '0');
           const selectedDate = `${yyyy}-${mm}-${dd}`;
-          localStorage.setItem('date', selectedDate);
+          localStorage.setItem('selectedDate', selectedDate);
+
 
           const currentLang = params.get('lang');
           let redirectUrl = `reservedplace.html?guests=${guests}`;

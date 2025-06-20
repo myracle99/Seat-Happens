@@ -34,17 +34,8 @@ function addReservationToTable(reservation) {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-
   const completeBtn = row.querySelector('.complete-btn')
   const cancelBtn = row.querySelector('.cancel-btn')
-
-  completeBtn.addEventListener('click', async () => {
-    await updateReservationStatus(reservation.id, 'completed')
-  })
-
-  cancelBtn.addEventListener('click', async () => {
-    await updateReservationStatus(reservation.id, 'cancelled')
-  })
 
   reservationBody.appendChild(row)
 
@@ -66,41 +57,82 @@ cancelBtn.addEventListener('click', async () => {
 
 
 async function updateReservationStatus(id, newStatus, rowElement = null) {
-  if (newStatus === 'cancelled') {
-    const { data, error } = await supabase
+  try {
+
+    const { data: originalData, error: fetchError } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !originalData) {
+      console.error('❌ Fetch error:', fetchError);
+      alert(`Failed to fetch reservation: ${fetchError?.message || 'No data found'}`);
+      return;
+    }
+
+
+    let destinationTable;
+    let statusLabel;
+
+    if (newStatus === 'completed') {
+      destinationTable = 'archived_reservations';
+      statusLabel = 'completed';
+    } else if (newStatus === 'cancelled') {
+      destinationTable = 'deleted_reservations';
+      statusLabel = 'cancelled';
+    } else {
+      console.warn('⚠️ Invalid status:', newStatus);
+      return;
+    }
+
+
+    const timestamp = new Date().toISOString();
+    const reservationToMove = {
+      ...originalData,
+      status: statusLabel,
+      created_at: timestamp,
+    };
+
+
+    delete reservationToMove.id;
+
+  
+    const { error: insertError } = await supabase
+      .from(destinationTable)
+      .insert([reservationToMove]);
+
+    if (insertError) {
+      console.error(`❌ Insert into ${destinationTable} failed:`, insertError);
+      alert(`Failed to move reservation to ${destinationTable}: ${insertError.message}`);
+      return;
+    }
+
+ 
+    const { error: deleteError } = await supabase
       .from('reservations')
       .delete()
-      .eq('id', id)
+      .eq('id', id);
 
-    if (error) {
-      console.error('❌ Supabase delete error:', error)
-      alert(`Failed to delete: ${error.message}`)
-      return
+    if (deleteError) {
+      console.error('❌ Deletion error:', deleteError);
+      alert(`Failed to delete original reservation: ${deleteError.message}`);
+      return;
     }
 
-    console.log('✅ Deleted from Supabase:', data)
-    if (rowElement) rowElement.remove()
-  } else if (newStatus === 'completed') {
-    const { data, error } = await supabase
-      .from('reservations')
-      .update({ status: 'completed' })
-      .eq('id', id)
+    console.log(`✅ Successfully moved reservation "${originalData.name}" to ${destinationTable}`);
 
-    if (error) {
-      console.error('❌ Supabase update error:', error)
-      alert(`Failed to update status: ${error.message}`)
-      return
-    }
-
-    console.log('✅ Marked as completed:', data)
-
+ 
     if (rowElement) {
-      // Optional: visually indicate completion and disable buttons
-      rowElement.classList.add('completed')
-      rowElement.querySelectorAll('button').forEach(btn => btn.disabled = true)
+      rowElement.remove();
     }
+  } catch (err) {
+    console.error('🔥 Unexpected error in updateReservationStatus:', err);
+    alert('Something went wrong while updating reservation status.');
   }
 }
+
+
 
 
 
