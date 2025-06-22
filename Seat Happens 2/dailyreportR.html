@@ -30,7 +30,7 @@
         <table>
           <thead>
             <tr>
-              <th>Name of Customer</th>
+              <th>Status Name of Customer</th>
               <th>Email</th>
               <th>Phone Number</th>
               <th>Number of Guests</th>
@@ -52,90 +52,144 @@
   </div>
 
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w'; // Replace with your actual anon key
-    const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let selectedRowData = null;
-    let currentView = 'active';
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('reportDate').value = today;
+  loadReport(); // Load initial data
+});
 
-    document.getElementById('loadReportBtn').addEventListener('click', loadReport);
-    document.getElementById('viewArchivesBtn').addEventListener('click', viewArchives);
-    document.getElementById('viewDeletedBtn').addEventListener('click', viewDeleted);
+// Button handlers
+document.getElementById('loadReportBtn').addEventListener('click', loadReport);
+document.getElementById('viewArchivesBtn').addEventListener('click', viewArchives);
+document.getElementById('viewDeletedBtn').addEventListener('click', viewDeleted);
 
-    async function loadReport() {
-      currentView = 'active';
-      const selectedDate = document.getElementById('reportDate').value;
-      if (!selectedDate) return alert("Please select a date.");
+async function loadReport() {
+  try {
+    const date = document.getElementById('reportDate').value;
+    if (!date) return alert("Please select a date.");
+    
+    // Fetch from all three tables in parallel
+    const [activeRes, archivedRes, deletedRes] = await Promise.all([
+      fetchTableData('reservations', date),
+      fetchTableData('archived_reservations', date),
+      fetchTableData('deleted_reservations', date)
+    ]);
+    
+    // Combine all results
+    const allReservations = [
+      ...(activeRes.data || []),
+      ...(archivedRes.data || []),
+      ...(deletedRes.data || [])
+    ];
+    
+    console.log("Combined data:", allReservations);
+    displayResults(allReservations, "All Reservations");
+    
+  } catch (error) {
+    console.error("Error loading report:", error);
+    alert("Failed to load complete report");
+  }
+}
 
-      const { data, error } = await supabase.from('reservations').select('*');
-      if (error) return alert("Failed to load reservations");
+async function viewArchives() {
+  await fetchAndDisplay('archived_reservations', 'Archived Reservations');
+}
 
-      renderList(data, 'active');
-    }
+async function viewDeleted() {
+  await fetchAndDisplay('deleted_reservations', 'Deleted Reservations');
+}
 
-    async function viewArchives() {
-      currentView = 'archived';
-      const { data, error } = await supabase.from('archived_reservations').select('*');
-      if (error) return alert("Failed to load archived reservations");
+// Shared fetch function
+async function fetchAndDisplay(tableName, displayName) {
+  try {
+    const date = document.getElementById('reportDate').value;
+    if (!date) return alert("Please select a date.");
+    
+    const { data, error } = await fetchTableData(tableName, date);
+    if (error) throw error;
+    
+    displayResults(data, displayName);
+  } catch (error) {
+    console.error(`Error fetching ${tableName}:`, error);
+    alert(`Failed to load ${displayName}`);
+  }
+}
 
-      renderList(data, 'archived');
-    }
+// Core fetch function
+async function fetchTableData(tableName, date) {
+  const formattedDate = new Date(date).toISOString().split('T')[0];
+  console.log(`Fetching ${tableName} for:`, formattedDate);
+  
+  return await supabase
+    .from(tableName)
+    .select('*')
+    .eq('reservation_date', formattedDate)
+    .order('created_at', { ascending: false });
+}
 
-    async function viewDeleted() {
-      currentView = 'deleted';
-      const { data, error } = await supabase.from('deleted_reservations').select('*');
-      if (error) return alert("Failed to load deleted reservations");
+// Display results
+function displayResults(data, title) {
+  const tbody = document.getElementById('reportBody');
+  tbody.innerHTML = '';
 
-      renderList(data, 'deleted');
-    }
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="no-data">
+          No ${title.toLowerCase()} found for selected date
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
-    function renderList(list, type) {
-      const tableBody = document.getElementById('reportBody');
-      tableBody.innerHTML = '';
+  data.forEach(item => {
+    const row = document.createElement('tr');
+    // Add status indicator if not active reservation
+    const statusBadge = item.status ? 
+      `<span class="status-badge ${item.status}">${item.status}</span>` : 
+      '<span class="status-badge active">active</span>';
+    
+    row.innerHTML = `
+      <td>${statusBadge} ${item.name}</td>
+      <td>${item.email}</td>
+      <td>${item.phone}</td>
+      <td>${item.guest_count}</td>
+      <td>${item.place}</td>
+      <td>${item.reservation_time}</td>
+    `;
+    row.onclick = () => showDetails(item);
+    tbody.appendChild(row);
+  });
+}
 
-      if (!list || list.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7">No ${type} reservation data found.</td></tr>`;
-        return;
-      }
+// Popup functions remain the same
+function showDetails(item) {
+  document.getElementById('popupInfo').innerHTML = `
+    <h3>Reservation Details</h3>
+    <p><strong>Status:</strong> ${item.status || 'active'}</p>
+    <p><strong>Name:</strong> ${item.name}</p>
+    <p><strong>Date:</strong> ${item.reservation_date}</p>
+    <p><strong>Time:</strong> ${item.reservation_time}</p>
+    <p><strong>Guests:</strong> ${item.guest_count}</p>
+    <p><strong>Contact:</strong> ${item.phone} | ${item.email}</p>
+    ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+  `;
+  document.getElementById('popup').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
 
-      list.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.classList.add('highlight-row');
-        tr.innerHTML = `
-          <td>${row.id}</td>
-          <td>${row.name}</td>
-          <td>${row.email}</td>
-          <td>${row.phone}</td>
-          <td>${row.guest_count || row.guests || '-'}</td>
-          <td>${row.place}</td>
-          <td>${row.reservation_time || row.time}</td>
-        `;
-        tr.onclick = () => openPopup(row);
-        tableBody.appendChild(tr);
-      });
-    }
-
-    function openPopup(rowData) {
-      selectedRowData = { ...rowData };
-
-      document.getElementById('popupInfo').textContent = `Reservation Entry: ${rowData.id}`;
-      document.getElementById('popupTimestamps').innerHTML = `
-        <small>
-          ${rowData.created_at ? `Created At: ${new Date(rowData.created_at).toLocaleString()}<br>` : ''}
-        </small>
-      `;
-
-      document.getElementById('popup').style.display = 'block';
-      document.getElementById('overlay').style.display = 'block';
-    }
-
-    window.closePopup = function () {
-      document.getElementById('popup').style.display = 'none';
-      document.getElementById('overlay').style.display = 'none';
-    };
+window.closePopup = function() {
+  document.getElementById('popup').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+};
   </script>
 </body>
 </html>
