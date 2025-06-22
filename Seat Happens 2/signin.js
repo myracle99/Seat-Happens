@@ -70,8 +70,34 @@ document.getElementById('signup-form')?.addEventListener('submit', async (e) => 
     return;
   }
 
+  // Normalize the email by trimming whitespace and converting to lowercase
+  const trimmedEmail = email.trim().toLowerCase(); 
+
+  // Check if the email already exists in the profiles table
+  const { data: existingAdmin, error: fetchError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('email', trimmedEmail) // Use the normalized email
+    .limit(1); // Limit to 1 record
+
+  // Log the response for debugging
+  console.log('Existing Admin Check:', existingAdmin, fetchError);
+
+  if (fetchError) {
+    console.error('Error checking existing admin:', fetchError);
+    errorElement.textContent = 'An error occurred while checking the email: ' + fetchError.message;
+    return;
+  }
+
+  // Check if any record was found
+  if (existingAdmin && existingAdmin.length > 0) {
+    errorElement.textContent = "Email already in use. Please use a different email.";
+    return; // Stop the process if the email already exists
+  }
+
+  // Proceed to add the new admin
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: trimmedEmail, // Use the normalized email
     password
   });
 
@@ -84,7 +110,7 @@ document.getElementById('signup-form')?.addEventListener('submit', async (e) => 
   if (user) {
     const { error: profileError } = await supabase.from('profiles').insert([{
       user_id: user.id,
-      username: email.split('@')[0],
+      username: trimmedEmail.split('@')[0],
       full_name: fullName,
       avatar_url: '',
       website: '',
