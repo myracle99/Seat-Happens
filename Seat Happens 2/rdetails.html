@@ -5,8 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Reservation Details - Ches Cafe</title>
   <link rel="stylesheet" href="rdetails.css" />
+  <style>
+    /* Validation styles */
+    input:invalid {
+      border-color: #ff4444;
+      box-shadow: 0 0 5px rgba(255, 68, 68, 0.3);
+    }
+    input:valid {
+      border-color: #00C851;
+    }
+    .error-message {
+      color: #ff4444;
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+      display: none;
+    }
+    input:invalid + .error-message {
+      display: block;
+    }
+  </style>
 </head>
-<body style="background-image: url('website bg.png');">
+<body style="background-image: url('website-bg.png');">
   <section class="page">
     <header>
       <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
@@ -39,18 +58,21 @@
         <form id="reservationForm">
           <div class="form-group">
             <label for="name" data-translate="nameLabel">Name*</label>
-            <input type="text" id="name" name="name" required />
+            <input type="text" id="name" name="name" pattern="[A-Za-z\s]+" title="Letters only" required />
+            <div class="error-message">Letters and spaces only</div>
           </div>
           <div class="form-group">
             <label for="phone" data-translate="phoneLabel">Phone Number*</label>
-            <input type="tel" id="phone" name="phone" required />
+            <input type="tel" id="phone" name="phone" pattern="[0-9]{11}" title="11 digits" required />
+            <div class="error-message">Exactly 11 digits required</div>
           </div>
           <div class="form-group">
             <label for="email" data-translate="emailLabel">Email Address*</label>
             <input type="email" id="email" name="email" required />
+            <div class="error-message">Valid email required</div>
           </div>
           <div class="form-group">
-            <label for="notes" data-translate="notesLabel">Notes or Special Requests (optional)</label>
+            <label for="notes" data-translate="notesLabel">Notes (optional)</label>
             <textarea id="notes" name="notes" rows="3"></textarea>
           </div>
           <button type="submit" class="submit-btn" data-translate="bookNowBtn">Book Now</button>
@@ -59,192 +81,121 @@
     </main>
 
     <footer>
-      <p><img src="location icon.png" alt="Location Icon" /> <span data-translate="address">Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</span></p>
-      <p><img src="call icon.png" alt="Phone Icon" /> <span data-translate="phone">0945 306 6376</span></p>
-      <p><img src="time icon.png" alt="Clock Icon" /> <span data-translate="hours">Monday-Sunday 10:00 AM - 10:00 PM</span></p>
+      <p><img src="location icon.png" alt="Location Icon" /> Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</p>
+      <p><img src="call icon.png" alt="Phone Icon" /> 0945 306 6376</p>
+      <p><img src="time icon.png" alt="Clock Icon" /> Monday-Sunday 10:00 AM - 10:00 PM</p>
     </footer>
   </section>
 
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script>
+    emailjs.init('Wa4qxuVs1KGKA0WZ0');
+  </script>
 
   <script src="langModal.js"></script>
   <script type="module">
-  import { supabase } from './supabase.js';
+    import { supabase } from './supabase.js';
 
-  document.addEventListener('DOMContentLoaded', () => {
-    // Load saved reservation details
-    const place = localStorage.getItem('selectedPlace');
-    const guestCount = parseInt(localStorage.getItem('guestCount'), 10);
-    const reservationDate = localStorage.getItem('selectedDate');
-    const reservationTime = localStorage.getItem('selectedTime');
+    // Prevent multiple submissions
+    let isProcessing = false;
 
-    // Fill in summary section
-    document.getElementById('selected-place').textContent = place || 'Select a place';
-    document.getElementById('guest-count').textContent = guestCount ? `${guestCount} guest${guestCount > 1 ? 's' : ''}` : 'Select guests';
-
-    if (reservationDate) {
-      const d = new Date(reservationDate);
-      const options = { weekday: 'long', month: 'long', day: 'numeric' };
-      document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', options);
-    }
-
-    document.getElementById('selected-time').textContent = reservationTime || 'Select a time';
-
-    // Handle form submission
-    document.querySelector('form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const notes = document.getElementById('notes').value.trim();
-
-      if (!name || !phone || !email) {
-        alert('Please complete all required fields.');
-        return;
-      }
-
-      const { data, error } = await supabase.from('reservations').insert([
-        {
-          place,
-          guest_count: guestCount,
-          reservation_date: reservationDate,
-          reservation_time: reservationTime,
-          name,
-          phone,
-          email,
-          notes: notes || null
-        }
-      ]);
-
-      if (error) {
-        console.error('Supabase insert error:', error);
-        alert('Failed to submit reservation. Please try again.');
-      } else {
-        console.log('Reservation saved:', data);
-        const currentLang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
-        window.location.href = `received.html?lang=${currentLang}`;
-      }
-    });
-  });
-</script>
-<script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Retrieve all saved values from localStorage
+      // Input sanitization
+      document.getElementById('name').addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^A-Za-z\s]/g, '');
+      });
+      
+      document.getElementById('phone').addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+      });
+
+      // Load saved selections
       const place = localStorage.getItem('selectedPlace');
       const guests = localStorage.getItem('guestCount');
       const date = localStorage.getItem('selectedDate');
       const time = localStorage.getItem('selectedTime');
 
-      // Show Place
-      document.getElementById('selected-place').textContent = place || "Select a place";
-
-      // Show Guests with proper translation support
-      if (guests) {
-        const guestNum = parseInt(guests, 10);
-        if (window.translator) {
-          const baseLang = window.translator.currentLang.split('-')[0];
-          const guestText = window.translator.getGuestText(guestNum, baseLang);
-          document.getElementById('guest-count').textContent = guestText;
-        } else {
-          // Fallback for English
-          if (guestNum === 1) {
-            document.getElementById('guest-count').textContent = "1 guest";
-          } else {
-            document.getElementById('guest-count').textContent = `${guestNum} guests`;
-          }
-        }
-      } else {
-        document.getElementById('guest-count').textContent = "Select guests";
-      }
-
-      // Show Date formatted nicely
+      document.getElementById('selected-place').textContent = place || 'Select a place';
+      document.getElementById('guest-count').textContent = guests ? `${guests} guest${guests > 1 ? 's' : ''}` : 'Select guests';
+      
       if (date) {
-        const d = new Date(date + 'T00:00:00'); // Add time to avoid timezone issues
-        if (!isNaN(d)) {
-          const options = { weekday: 'long', month: 'long', day: 'numeric' };
-          document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', options);
-        } else {
-          document.getElementById('selected-date').textContent = "Select a date";
-        }
-      } else {
-        document.getElementById('selected-date').textContent = "Select a date";
+        const d = new Date(date);
+        document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', { 
+          weekday: 'long', month: 'long', day: 'numeric' 
+        });
       }
 
-      // Show Time
-      document.getElementById('selected-time').textContent = time || "Select a time";
-    });
+      document.getElementById('selected-time').textContent = time || 'Select a time';
+
+     
+        document.getElementById('reservationForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          if (isProcessing) return;
+          isProcessing = true;
+
+          const submitBtn = document.querySelector('.submit-btn');
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Processing...';
+
+          // Form data collection with corrected field names
+          const formData = {
+            name: document.getElementById('name').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            phone: document.getElementById('phone').value.trim(),
+            place: localStorage.getItem('selectedPlace'),
+            guest_count: localStorage.getItem('guestCount'),
+            reservation_date: localStorage.getItem('selectedDate'),
+            reservation_time: localStorage.getItem('selectedTime'),
+            notes: document.getElementById('notes').value.trim() || null
+          };
+
+          try {
+            // Send email (keep original template variables)
+            await emailjs.send('service_vhgdmi8', 'template_kf9anff', {
+              customer_name: formData.name,
+              customer_email: formData.email,
+              customer_phone: formData.phone,
+              reservation_place: formData.place,
+              reservation_guests: formData.guest_count,
+              reservation_date: formData.reservation_date,
+              reservation_time: formData.reservation_time,
+              special_requests: formData.notes || 'None'
+            });
+
+            // Insert into Supabase with correct column names
+            const { data, error } = await supabase
+              .from('reservations')
+              .insert([{
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                place: formData.place,
+                guest_count: parseInt(formData.guest_count),
+                reservation_date: new Date(formData.reservation_date).toISOString(),
+                reservation_time: formData.reservation_time,
+                notes: formData.notes
+              }])
+              .select();
+
+            if (error) throw error;
+            window.location.href = `received.html?lang=${new URLSearchParams(window.location.search).get('lang') || 'en-US'}`;
+            
+          } catch (error) {
+            console.error('Error:', error);
+            alert('Submission failed. Please try again or call 0945 306 6376');
+          } finally {
+            isProcessing = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Book Now';
+          }
+        });
+            });
 
     function goToPage(page) {
-      // Include current reservation data in URL parameters for proper flow
-      const guests = localStorage.getItem('guestCount');
-      const date = localStorage.getItem('selectedDate');
-      const currentLang = window.translator ? window.translator.currentLang : 'en-US';
-      
-      let url = `${page}?lang=${currentLang}`;
-      
-      // Add relevant parameters based on the target page
-      if (page.includes('calendar.html') && guests) {
-        url += `&guests=${guests}`;
-      } else if (page.includes('reservedplace.html') && guests && date) {
-        url += `&guests=${guests}&date=${date}`;
-      } else if (page.includes('guests.html')) {
-        // No additional parameters needed for guests page
-      } else if (page.includes('time.html')) {
-        // No additional parameters needed for time page
-      }
-      
-      window.location.href = url;
-    }
-
-    function validateForm(event) {
-      event.preventDefault(); // Prevent default form submission
-      
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const notes = document.getElementById("notes").value.trim();
-
-      // Basic validation
-      if (!name || !phone || !email) {
-        alert("Please complete all required fields.");
-        return false;
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        alert("Please enter a valid email address.");
-        return false;
-      }
-
-      // Phone validation (basic)
-      const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-      if (!phoneRegex.test(phone)) {
-        alert("Please enter a valid phone number.");
-        return false;
-      }
-
-      // Store customer details in localStorage for confirmation page
-      localStorage.setItem('customerName', name);
-      localStorage.setItem('customerPhone', phone);
-      localStorage.setItem('customerEmail', email);
-      localStorage.setItem('customerNotes', notes);
-
-      // Show loading state
-      const submitBtn = document.querySelector('.submit-btn');
-      const originalText = submitBtn.textContent;
-      submitBtn.textContent = 'Processing...';
-      submitBtn.disabled = true;
-
-      // Simulate processing time and redirect
-      setTimeout(() => {
-        const currentLang = window.translator ? window.translator.currentLang : 'en-US';
-        window.location.href = `received.html?lang=${currentLang}`;
-      }, 1000);
-      
-      return false; // Prevent actual form submission since we're handling it manually
+      const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
+      window.location.href = `${page}?lang=${lang}`;
     }
   </script>
-
 </body>
 </html>
