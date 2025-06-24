@@ -1,71 +1,416 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Live Queue Report</title>
-  <link rel="stylesheet" href="dailyreportQ.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Report - Queue</title>
+  <link rel="stylesheet" href="dailyreportQ.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <img src="back icon.png" alt="Back" class="icon back-icon" />
-      <div class="header-icons">
-        <img src="home icon.png" alt="Home" class="icon" />
-        <img src="profile icon.png" alt="Profile" class="icon" />
+      <a href="adminhomepage.html">
+        <img src="back icon.png" alt="Back" class="icon back-icon">
+      </a>
       </div>
     </header>
 
     <main>
-      <h1>DAILY REPORT</h1>
-
+      <h1>DAILY REPORT - QUEUE</h1>
       <div class="top-buttons">
-        <input type="date" id="queueDate" class="red-button calendar-button" title="Choose Date" />
+        <input type="date" id="queueDate" class="red-button calendar-button" title="Choose Date">
         <a href="dailyreportR.html" class="red-button">Reservations</a>
         <a href="dailyreportQ.html" class="red-button">Queue</a>
         <button class="red-button" onclick="loadQueue()">LOAD QUEUE</button>
+        <button class="red-button" onclick="viewArchives()">View Archives</button>
+        <button class="red-button" onclick="viewDeleted()">View Deleted</button>
       </div>
-
       <div class="report-table">
         <table>
           <thead>
             <tr>
               <th>Queue Number</th>
+              <th>Name of Customer</th>
+              <th>Email</th>
+              <th>Phone Number</th>
+              <th>Number of Guests</th>
               <th>Place</th>
-              <th>Number Of Guest</th>
               <th>Time Registered</th>
+              <th>Time Called</th>
             </tr>
           </thead>
           <tbody id="queueBody">
-            <!-- Queue data will be loaded dynamically -->
+            <tr><td colspan="8">Please select a date and click "LOAD QUEUE"</td></tr>
           </tbody>
         </table>
       </div>
     </main>
   </div>
 
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+  <div class="popup" id="popup">
+    <p id="popupInfo"></p>
+    <div id="popupDetails"></div>
+    <div id="popupTimestamps"></div>
+    <button onclick="archiveEntry()" id="archiveButton">Archive</button>
+    <button onclick="deleteEntry()" id="deleteButton">Delete</button>
+    <button onclick="restoreEntry()" id="restoreButton">Restore</button>
+    <button onclick="closePopup()">Close</button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
+
   <script>
-    function loadQueue() {
-      const selectedDate = document.getElementById('queueDate').value;
-      if (!selectedDate) {
-        alert("Please select a date to load the live queue.");
+    // Firebase configuration - same as manageq.html
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtxDpQKE5mXG90SUuX5DfyLmeL7qXCDQs",
+      authDomain: "chess-queue.firebaseapp.com",
+      databaseURL: "https://chess-queue-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "chess-queue",
+      storageBucket: "chess-queue.firebasestorage.app",
+      messagingSenderId: "882197528383",
+      appId: "1:882197528383:web:9e6cb10970b0875baf5d8a",
+      measurementId: "G-KKQTXQDV9T"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let selectedRowData = null;
+    let currentView = 'done';
+    let selectedDate = null;
+
+    // Function to format timestamp
+    function formatTimestamp(timestamp) {
+      if (!timestamp) return 'N/A';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    }
+
+    // Function to get date key from timestamp
+    function getDateKey(timestamp) {
+      const date = new Date(timestamp);
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    }
+
+    // Function to load queue data from Firebase done list
+    async function loadQueue() {
+      const dateInput = document.getElementById('queueDate');
+      if (!dateInput.value) {
+        alert("Please select a date.");
         return;
       }
 
-      console.log("Loading queue for date:", selectedDate);
-
-      // Simulate dynamic queue data
+      selectedDate = dateInput.value;
+      currentView = 'done';
+      
       const tableBody = document.getElementById('queueBody');
-      tableBody.innerHTML = `
-        <tr>
-          <td>Q01</td>
-          <td>Indoor</td>
-          <td>2</td>
-          <td>10:45 AM</td>
-        </tr>
-       
-      `;
+      tableBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+
+      try {
+        // Load done entries for the selected date
+        const snapshot = await database.ref(`done/${selectedDate}`).once('value');
+        const doneData = snapshot.val();
+
+        if (!doneData || Object.keys(doneData).length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="8">No completed queue entries found for this date.</td></tr>';
+          return;
+        }
+
+        // Convert to array and sort by completion time
+        const doneEntries = Object.entries(doneData).map(([key, entry]) => ({
+          ...entry,
+          firebaseKey: key
+        }));
+
+        doneEntries.sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0));
+
+        // Display the entries
+        displayEntries(doneEntries);
+
+      } catch (error) {
+        console.error('Error loading queue data:', error);
+        tableBody.innerHTML = '<tr><td colspan="8">Error loading data. Please try again.</td></tr>';
+      }
     }
+
+    // Function to display entries in the table
+    function displayEntries(entries) {
+      const tableBody = document.getElementById('queueBody');
+      
+      if (entries.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8">No ${currentView} queue entries found.</td></tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = '';
+      entries.forEach(entry => {
+        const tr = document.createElement('tr');
+        tr.classList.add('highlight-row');
+        tr.innerHTML = `
+          <td>${entry.queueNumber || 'N/A'}</td>
+          <td>${entry.name || 'N/A'}</td>
+          <td>${entry.email || 'N/A'}</td>
+          <td>${entry.phone || 'N/A'}</td>
+          <td>${entry.guests || 'N/A'}</td>
+          <td>${entry.location ? entry.location.toUpperCase() : 'N/A'}</td>
+          <td>${formatTimestamp(entry.timestamp)}</td>
+          <td>${formatTimestamp(entry.calledAt)}</td>
+        `;
+        tr.onclick = () => openPopup(entry);
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // Function to open popup with entry details
+    function openPopup(entryData) {
+      selectedRowData = { ...entryData };
+      
+      document.getElementById('popupInfo').textContent = `Queue Entry: ${entryData.queueNumber}`;
+      document.getElementById('popupDetails').innerHTML = `
+        <strong>Customer:</strong> ${entryData.name}<br>
+        <strong>Email:</strong> ${entryData.email || 'N/A'}<br>
+        <strong>Phone:</strong> ${entryData.phone || 'N/A'}<br>
+        <strong>Guests:</strong> ${entryData.guests}<br>
+        <strong>Location:</strong> ${entryData.location ? entryData.location.toUpperCase() : 'N/A'}
+      `;
+
+      let timestampInfo = `
+        <strong>Registered:</strong> ${formatTimestamp(entryData.timestamp)}<br>
+        <strong>Called:</strong> ${formatTimestamp(entryData.calledAt)}
+      `;
+
+      if (entryData.archivedAt) {
+        timestampInfo += `<br><strong>Archived:</strong> ${formatTimestamp(entryData.archivedAt)}`;
+      }
+      if (entryData.deletedAt) {
+        timestampInfo += `<br><strong>Deleted:</strong> ${formatTimestamp(entryData.deletedAt)}`;
+      }
+
+      document.getElementById('popupTimestamps').innerHTML = `<small>${timestampInfo}</small>`;
+
+      // Show/hide buttons based on current view
+      const archiveBtn = document.getElementById('archiveButton');
+      const deleteBtn = document.getElementById('deleteButton');
+      const restoreBtn = document.getElementById('restoreButton');
+      
+      if (currentView === 'done') {
+        archiveBtn.style.display = 'inline-block';
+        deleteBtn.style.display = 'inline-block';
+        restoreBtn.style.display = 'none';
+      } else {
+        archiveBtn.style.display = 'none';
+        deleteBtn.style.display = 'none';
+        restoreBtn.style.display = 'inline-block';
+      }
+
+      document.getElementById('popup').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    // Function to close popup
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    // Function to archive entry
+    async function archiveEntry() {
+      if (!selectedRowData || !selectedDate) {
+        alert('No entry selected or date not set.');
+        return;
+      }
+
+      if (!confirm(`Archive ${selectedRowData.name} (${selectedRowData.queueNumber})?`)) {
+        return;
+      }
+
+      try {
+        // Add archivedAt timestamp
+        const archivedData = {
+          ...selectedRowData,
+          archivedAt: firebase.database.ServerValue.TIMESTAMP
+        };
+        delete archivedData.firebaseKey;
+
+        // Move to archived list
+        await database.ref(`archived/${selectedDate}`).push().set(archivedData);
+        
+        // Remove from done list
+        await database.ref(`done/${selectedDate}/${selectedRowData.firebaseKey}`).remove();
+        
+        alert(`Archived ${selectedRowData.queueNumber}`);
+        closePopup();
+        loadQueue(); // Refresh the view
+        
+      } catch (error) {
+        console.error('Error archiving entry:', error);
+        alert('Error archiving entry. Please try again.');
+      }
+    }
+
+    // Function to delete entry
+    async function deleteEntry() {
+      if (!selectedRowData || !selectedDate) {
+        alert('No entry selected or date not set.');
+        return;
+      }
+
+      if (!confirm(`Delete ${selectedRowData.name} (${selectedRowData.queueNumber})?`)) {
+        return;
+      }
+
+      try {
+        // Add deletedAt timestamp
+        const deletedData = {
+          ...selectedRowData,
+          deletedAt: firebase.database.ServerValue.TIMESTAMP
+        };
+        delete deletedData.firebaseKey;
+
+        // Move to deleted list
+        await database.ref(`deleted/${selectedDate}`).push().set(deletedData);
+        
+        // Remove from done list
+        await database.ref(`done/${selectedDate}/${selectedRowData.firebaseKey}`).remove();
+        
+        alert(`Deleted ${selectedRowData.queueNumber}`);
+        closePopup();
+        loadQueue(); // Refresh the view
+        
+      } catch (error) {
+        console.error('Error deleting entry:', error);
+        alert('Error deleting entry. Please try again.');
+      }
+    }
+
+    // Function to restore entry
+    async function restoreEntry() {
+      if (!selectedRowData || !selectedDate) {
+        alert('No entry selected or date not set.');
+        return;
+      }
+
+      if (!confirm(`Restore ${selectedRowData.name} (${selectedRowData.queueNumber}) back to completed list?`)) {
+        return;
+      }
+
+      try {
+        // Create restored data (remove archive/delete timestamps)
+        const restoredData = { ...selectedRowData };
+        delete restoredData.firebaseKey;
+        delete restoredData.archivedAt;
+        delete restoredData.deletedAt;
+
+        // Move back to done list
+        await database.ref(`done/${selectedDate}`).push().set(restoredData);
+        
+        // Remove from current list (archived or deleted)
+        const currentPath = currentView === 'archived' ? 'archived' : 'deleted';
+        await database.ref(`${currentPath}/${selectedDate}/${selectedRowData.firebaseKey}`).remove();
+        
+        alert(`Restored ${selectedRowData.queueNumber}`);
+        closePopup();
+        
+        // Refresh current view
+        if (currentView === 'archived') {
+          viewArchives();
+        } else if (currentView === 'deleted') {
+          viewDeleted();
+        }
+        
+      } catch (error) {
+        console.error('Error restoring entry:', error);
+        alert('Error restoring entry. Please try again.');
+      }
+    }
+
+    // Function to view archives
+    async function viewArchives() {
+      if (!selectedDate) {
+        alert('Please select a date first.');
+        return;
+      }
+
+      currentView = 'archived';
+      const tableBody = document.getElementById('queueBody');
+      tableBody.innerHTML = '<tr><td colspan="7">Loading archives...</td></tr>';
+
+      try {
+        const snapshot = await database.ref(`archived/${selectedDate}`).once('value');
+        const archivedData = snapshot.val();
+
+        if (!archivedData) {
+          tableBody.innerHTML = '<tr><td colspan="8">No archived queue entries found for this date.</td></tr>';
+          return;
+        }
+
+        const archivedEntries = Object.entries(archivedData).map(([key, entry]) => ({
+          ...entry,
+          firebaseKey: key
+        }));
+
+        archivedEntries.sort((a, b) => (a.archivedAt || 0) - (b.archivedAt || 0));
+        displayEntries(archivedEntries);
+
+      } catch (error) {
+        console.error('Error loading archived data:', error);
+        tableBody.innerHTML = '<tr><td colspan="8">Error loading archived data.</td></tr>';
+      }
+    }
+
+    // Function to view deleted entries
+    async function viewDeleted() {
+      if (!selectedDate) {
+        alert('Please select a date first.');
+        return;
+      }
+
+      currentView = 'deleted';
+      const tableBody = document.getElementById('queueBody');
+      tableBody.innerHTML = '<tr><td colspan="7">Loading deleted entries...</td></tr>';
+
+      try {
+        const snapshot = await database.ref(`deleted/${selectedDate}`).once('value');
+        const deletedData = snapshot.val();
+
+        if (!deletedData) {
+          tableBody.innerHTML = '<tr><td colspan="8">No deleted queue entries found for this date.</td></tr>';
+          return;
+        }
+
+        const deletedEntries = Object.entries(deletedData).map(([key, entry]) => ({
+          ...entry,
+          firebaseKey: key
+        }));
+
+        deletedEntries.sort((a, b) => (a.deletedAt || 0) - (b.deletedAt || 0));
+        displayEntries(deletedEntries);
+
+      } catch (error) {
+        console.error('Error loading deleted data:', error);
+        tableBody.innerHTML = '<tr><td colspan="8">Error loading deleted data.</td></tr>';
+      }
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set today's date as default
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('queueDate').value = today;
+      console.log('Daily Report Queue system initialized');
+    });
   </script>
 </body>
 </html>

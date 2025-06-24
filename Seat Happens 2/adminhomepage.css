@@ -39,6 +39,13 @@ header {
   gap: 15px;
 }
 
+.logo {
+  width:100px;
+  height: 100px;
+  cursor: pointer;
+}
+
+
 main {
   text-align: center;
   margin-top: 100px;

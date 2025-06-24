@@ -109,13 +109,14 @@
   <section class="page" style="background-image: url('1fb876d3-1c67-4d6d-9086-b4a27e1f4c8a.png');">
     <header>
       <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
-      <a href="homepage.html">
-        <img src="home icon.png" alt="Home Icon" class="home-icon" />
-      </a>
+      <div class="top-icons">
+  <a href="homepage.html"><img src="home icon.png" alt="Home" class="icon home-icon"></a>
+ 
+</div>
     </header>
     <main>
       <div class="card">
-        <h2><span data-translate="whenJoin">When would</span> <span class="highlight">the 2 of you</span> <span data-translate="likeToJoin">like to join us?</span></h2>
+        <h2><span data-translate="whenJoin">When would</span> <span id="guest-count" class="highlight">the 2 of you</span> <span data-translate="likeToJoin">like to join us?</span></h2>
 
         <div class="calendar-container">
           <div class="calendar-header">
@@ -137,12 +138,29 @@
   <script src="langModal.js"></script>
  <script>
   const params = new URLSearchParams(window.location.search);
-  const guests = params.get('guests') || '2';
+  const guests = parseInt(params.get('guests')) || 2;
   localStorage.setItem('guests', guests);
 
-  const highlightSpan = document.querySelector('.highlight');
-  if (highlightSpan) {
-    highlightSpan.textContent = `the ${guests} of you`;
+  // Wait for translator to be initialized
+  window.addEventListener('DOMContentLoaded', () => {
+    // Update guest count with proper translation
+    updateGuestCount();
+  });
+
+  function updateGuestCount() {
+    const guestCountElement = document.getElementById("guest-count");
+    if (window.translator) {
+      const baseLang = window.translator.currentLang.split('-')[0];
+      const guestText = window.translator.getGuestText(guests, baseLang);
+      guestCountElement.textContent = guestText;
+    } else {
+      // Fallback for English
+      let guestText = "you";
+      if (guests === 1) guestText = "you";
+      else if (guests === 2) guestText = "the 2 of you";
+      else guestText = `all ${guests} of you`;
+      guestCountElement.textContent = guestText;
+    }
   }
 
   const calendarEl = document.getElementById('calendar');
@@ -203,8 +221,8 @@
           const selectedDate = `${yyyy}-${mm}-${dd}`;
           localStorage.setItem('selectedDate', selectedDate);
 
-
-          const currentLang = params.get('lang');
+          // Preserve language selection
+          const currentLang = window.translator ? window.translator.currentLang : params.get('lang') || 'en-US';
           let redirectUrl = `reservedplace.html?guests=${guests}`;
           if (currentLang) redirectUrl += `&lang=${currentLang}`;
           window.location.href = redirectUrl;
@@ -228,6 +246,11 @@
   nextMonthBtn.addEventListener('click', () => {
     currentDate.setMonth(currentDate.getMonth() + 1);
     renderCalendar(currentDate);
+  });
+
+  // Listen for language changes and update guest count
+  document.addEventListener('languageChanged', () => {
+    updateGuestCount();
   });
 
   // Initial render

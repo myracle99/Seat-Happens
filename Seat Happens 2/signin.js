@@ -98,7 +98,12 @@ document.getElementById('signup-form')?.addEventListener('submit', async (e) => 
   // Proceed to add the new admin
   const { data, error } = await supabase.auth.signUp({
     email: trimmedEmail, // Use the normalized email
-    password
+    password,
+    options: {
+    data: {
+      display_name: fullName  
+      }
+    }
   });
 
   if (error) {

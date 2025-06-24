@@ -1,7 +1,18 @@
-/* Background and layout */
-body {
+.ephesis-regular {
+  font-family: "Ephesis", cursive;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 100px; /* Increased from 80px */
+  margin: 0 0 5px;
+}
+
+/* General body & layout */
+html, body {
+  height: 100%;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
   font-family: 'Georgia', serif;
   background: url('webiste\ bg.jpg') no-repeat center center fixed;
   background-size: cover;
@@ -9,84 +20,88 @@ body {
   text-align: center;
 }
 
-/* Header styles */
+/* Header */
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 50px;
+  padding: 30px;
 }
 
 .logo {
-  height: 60px;
+  height: 100px;
 }
 
 .icons {
   display: flex;
-  flex-direction: row;   /* Make sure items are in a row */
-  gap: 40px;
-  align-items: center;   /* Vertically center icons */
+  flex-direction: row;
+  gap: 30px;
+  align-items: center;
 }
 
 .icon {
-  height: 40px;
-  width: 40px;
+  height: 36px;
+  width: 36px;
   cursor: pointer;
-  display: flex;          /* for button and links, flex to center content */
+  display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* Fix home icon image size inside the <a> */
 .icons a.icon img {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   display: block;
 }
 
-
-/* Main content */
+/* Main Content */
 .content {
-  margin-top: 100px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* pull text upward */
+  align-items: center;
+  text-align: center;
+  padding-top: 60px;
 }
 
 .content h1 {
-  font-size: 48px;
-  font-weight: bold;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
+  margin: 0 0 8px;
 }
 
 .content h2 {
-  font-size: 36px;
-  color: #ff3c3c;
+  font-size: 60px;
+  color: #ff3434;
   font-weight: bold;
-  margin: 20px 0;
-  letter-spacing: 2px;
+  margin: 0 0 8px;
+  letter-spacing: 1px;
 }
 
 .tagline {
-  font-size: 18px;
-  margin: 20px 0 50px;
+  font-size: 25px;
+  margin: 8px 0 24px;
 }
 
 /* Buttons */
 .buttons {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 20px;
   flex-wrap: wrap;
+  margin-top: 75px; /* Push buttons slightly lower */
 }
 
 .btn {
   background-color: limegreen;
   color: black;
-  padding: 15px 30px;
+  padding: 14px 30px;
   text-decoration: none;
   font-weight: bold;
   font-size: 16px;
   border-radius: 30px;
-  box-shadow: 0 5px 0 darkgreen;
+  box-shadow: 0 4px 0 darkgreen;
   transition: transform 0.2s;
 }
 
@@ -98,9 +113,28 @@ header {
 .lang-btn {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 20px;
   cursor: pointer;
   color: white;
+}
+
+/* Footer */
+footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  font-size: 14px;
+  color: #fff;
+  padding: 15px 10px;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+footer img {
+  width: 16px;
+  vertical-align: middle;
 }
 
 /* Modal Styles */
@@ -108,8 +142,10 @@ header {
   display: none;
   position: fixed;
   z-index: 10;
-  left: 0; top: 0;
-  width: 100%; height: 100%;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0,0,0,0.5);
 }
 
@@ -127,101 +163,21 @@ header {
 
 .close {
   position: absolute;
-  top: 10px; right: 20px;
+  top: 10px;
+  right: 20px;
   font-size: 28px;
   font-weight: bold;
   cursor: pointer;
 }
 
 .language-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
   margin-top: 20px;
   justify-content: center;
 }
 
-.lang-option {
-  flex: 1 0 40%;
-  padding: 10px;
-  cursor: pointer;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  text-align: center;
-  transition: background 0.3s;
-}
-
-.lang-option:hover {
-  background-color: #f0f0f0;
-}
-
-.flag {
-  font-size: 20px;
-  margin-right: 8px;
-}
-
-
-
-/* Modal background overlay */
-#langModal {
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: rgba(0,0,0,0.5); /* semi-transparent black */
-  display: none; /* Hidden by default */
-  align-items: center;
-  justify-content: center;
-  font-family: Arial, sans-serif;
-}
-
-/* Modal content box */
-#langModal .modal-content {
-  background-color: #fff;
-  margin: auto;
-  padding: 20px 30px;
-  border-radius: 8px;
-  max-width: 400px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  position: relative;
-  text-align: center;
-}
-
-/* Close button */
-#closeModal {
-  position: absolute;
-  top: 12px;
-  right: 15px;
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-  cursor: pointer;
-  user-select: none;
-}
-
-#closeModal:hover {
-  color: #e74c3c; /* red hover */
-}
-
-/* Modal header */
-#langModal h3 {
-  margin-bottom: 20px;
-  font-weight: 600;
-  font-size: 1.2rem;
-  color: #222;
-}
-
-/* Language options grid */
-.language-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-}
-
-/* Each language option */
 .lang-option {
   background-color: #f0f0f0;
   border-radius: 6px;
@@ -233,7 +189,7 @@ header {
   align-items: center;
   justify-content: center;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   gap: 8px;
   border: 1px solid transparent;
 }
@@ -243,17 +199,15 @@ header {
   border-color: #3498db;
 }
 
-/* Flags styling */
-.lang-option .flag {
-  font-size: 1.3rem;
+.flag {
+  font-size: 1.2rem;
 }
 
-/* Language button in header */
 #langBtn {
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -266,10 +220,37 @@ header {
   background-color: #e1f0ff;
 }
 
-/* Current language text */
 #currentLang {
   font-weight: 700;
   color: #333;
 }
 
+/* Red Neon Glow Animation */
+@keyframes redNeon {
+  from {
+    text-shadow:
+      0 0 5px #000000,
+      0 0 10px #ff1a1a,
+      0 0 20px #3e0404,
+      0 0 40px #e60000,
+      0 0 60px #4d0707;
+  }
+  to {
+    text-shadow:
+      0 0 10px #570a0a,
+      0 0 20px #5e0909,
+      0 0 30px #ff1a1a,
+      0 0 50px #e60000,
+      0 0 80px #b30000;
+  }
+}
 
+/* Apply to restaurant name */
+.content h2 {
+  font-size: 60px;
+  font-weight: bold;
+  margin: 0 0 8px;
+  letter-spacing: 1px;
+  color: #ff1a1a;
+  animation: redNeon 1.3s ease-in-out infinite alternate;
+}

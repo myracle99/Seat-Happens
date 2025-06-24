@@ -1,48 +1,437 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Manage Queue</title>
-  <link rel="stylesheet" href="manageq.css">
+  <link rel="stylesheet" href="manageq.css" />
 </head>
 <body>
   <div class="container">
     <header>
-      <img src="back icon.png" alt="Back" class="icon back-icon">
+      <a href="adminhomepage.html">
+        <img src="back icon.png" alt="Back" class="icon back-icon">
+      </a>
       <div class="header-icons">
-        <img src="home icon.png" alt="Home" class="icon">
-        <img src="profile icon.png" alt="Profile" class="icon">
+        <a href="homepage.html">
+          <img src="home icon.png" alt="Home" class="icon">
+        </a>
+        <a href="adminlogin.html">
+          <img src="profile icon.png" alt="Profile" class="icon">
+        </a>
       </div>
     </header>
 
     <main>
       <div class="queue-section">
+        <!-- Indoor Box -->
         <div class="queue-box">
           <h2>INDOOR</h2>
-          <p class="queue-item">ID02</p>
-          <p class="queue-item">ID03</p>
+          <div id="indoorQueue" class="loading">Loading...</div>
         </div>
 
+        <!-- Outdoor Box -->
         <div class="queue-box">
           <h2>OUTDOOR</h2>
-          <p class="queue-item">OD01</p>
+          <div id="outdoorQueue" class="loading">Loading...</div>
         </div>
 
-        <div class="queue-box">
-          <h2>SKIPPED NUMBERS</h2>
-        </div>
-
+        <!-- Now Calling Box -->
         <div class="call-box">
           <h2>NOW CALLING:</h2>
-          <div class="current-call">ID01</div>
+          <div class="current-call" id="currentCall">-</div>
+          <div class="info-text" id="currentCallInfo">
+            Select a customer to call
+          </div>
           <div class="call-buttons">
-            <button class="green-button">SKIP</button>
-            <button class="green-button">NEXT</button>
+            <div class="top-buttons">
+              <button class="green-button" onclick="callNextCustomer('indoor')">INDOOR NEXT</button>
+              <button class="green-button" onclick="callNextCustomer('outdoor')">OUTDOOR NEXT</button>
+            </div>
+            <div class="bottom-buttons">
+              <button class="red-button" onclick="markCurrentCustomerDone()" id="doneBtn" disabled>DONE</button>
+              <button class="red-button" onclick="deleteCurrentCustomer()" id="deleteBtn" disabled>DELETE</button>
+            </div>
           </div>
         </div>
       </div>
     </main>
   </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
+
+  <script>
+    // Firebase configuration - Replace with your actual config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtxDpQKE5mXG90SUuX5DfyLmeL7qXCDQs",
+      authDomain: "chess-queue.firebaseapp.com",
+      databaseURL: "https://chess-queue-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "chess-queue",
+      storageBucket: "chess-queue.firebasestorage.app",
+      messagingSenderId: "882197528383",
+      appId: "1:882197528383:web:9e6cb10970b0875baf5d8a",
+      measurementId: "G-KKQTXQDV9T"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Global variables to track current state
+    let currentlyServedCustomer = null;
+    let indoorQueueData = {};
+    let outdoorQueueData = {};
+
+    // Function to display queue for a specific location
+    function displayQueue(location, queueData) {
+      const containerId = location + 'Queue';
+      const container = document.getElementById(containerId);
+      
+      if (!queueData || Object.keys(queueData).length === 0) {
+        container.innerHTML = '<div class="empty-queue">No customers in queue</div>';
+        return;
+      }
+
+      // Convert object to array and sort by timestamp (oldest first)
+      const customers = Object.entries(queueData).map(([key, customer]) => ({
+        ...customer,
+        firebaseKey: key
+      }));
+      
+      customers.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      let html = '';
+      customers.forEach((customer, index) => {
+        const position = index + 1;
+        html += `
+          <div class="queue-item">
+            <div class="customer-info">
+              <div class="id">${customer.queueNumber}</div>
+              <div class="head-count">${customer.guests} SEATS</div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // Function to update the "Now Calling" display
+    function updateCurrentCallDisplay() {
+      const callElement = document.getElementById('currentCall');
+      const infoElement = document.getElementById('currentCallInfo');
+      const doneBtn = document.getElementById('doneBtn');
+      const deleteBtn = document.getElementById('deleteBtn');
+      
+      if (currentlyServedCustomer) {
+        callElement.textContent = currentlyServedCustomer.queueNumber;
+        infoElement.innerHTML = `
+          <strong>${currentlyServedCustomer.name}</strong><br>
+          ${currentlyServedCustomer.guests} SEATS | ${currentlyServedCustomer.location.toUpperCase()}
+        `;
+        doneBtn.disabled = false;
+        deleteBtn.disabled = false;
+      } else {
+        callElement.textContent = '-';
+        infoElement.textContent = 'No customer currently being served';
+        doneBtn.disabled = true;
+        deleteBtn.disabled = true;
+      }
+    }
+
+    // Function to get the next customer in queue (oldest by timestamp)
+    function getNextCustomer(location) {
+      const queueData = location === 'indoor' ? indoorQueueData : outdoorQueueData;
+      
+      if (!queueData || Object.keys(queueData).length === 0) {
+        return null;
+      }
+
+      // Convert to array and sort by timestamp (oldest first)
+      const customers = Object.entries(queueData).map(([key, customer]) => ({
+        ...customer,
+        firebaseKey: key
+      }));
+      
+      customers.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      
+      return customers[0]; // Return the oldest customer
+    }
+
+    // MODIFIED: Function to move a specific customer back to their original queue
+    async function moveCustomerBackToQueue(customerData) {
+      if (!customerData) {
+        console.log('No customer data provided to move back');
+        return;
+      }
+
+      // Additional safety checks
+      if (!customerData.queueNumber || !customerData.location || !customerData.firebaseKey) {
+        console.error('Missing required customer data:', customerData);
+        return;
+      }
+
+      try {
+        // Prepare the customer data to move back to queue (remove serving-specific fields)
+        const queueCustomerData = {
+          name: customerData.name || '',
+          email: customerData.email || '',
+          phone: customerData.phone || '',
+          location: customerData.location,
+          guests: customerData.guests || 1,
+          queueNumber: customerData.queueNumber,
+          timestamp: customerData.timestamp || new Date().toISOString(),
+          status: 'waiting',
+          createdAt: customerData.createdAt || firebase.database.ServerValue.TIMESTAMP
+        };
+
+        // Determine which queue to put them back in
+        const locationKey = customerData.location.toLowerCase();
+        
+        // Add back to their original queue
+        const queueRef = database.ref(`queues/${locationKey}`);
+        const newQueueRef = queueRef.push();
+        await newQueueRef.set(queueCustomerData);
+        
+        // Remove from nowServing
+        await database.ref(`nowServing/${customerData.firebaseKey}`).remove();
+        
+        console.log(`Moved ${customerData.queueNumber} back to ${locationKey} queue`);
+        
+      } catch (error) {
+        console.error('Error moving customer back to queue:', error);
+        throw error;
+      }
+    }
+
+    // MODIFIED: Function to move current customer back to their original queue
+    async function moveCurrentCustomerBackToQueue() {
+      if (!currentlyServedCustomer) {
+        console.log('No customer currently being served to move back');
+        return;
+      }
+
+      return await moveCustomerBackToQueue(currentlyServedCustomer);
+    }
+
+    // MODIFIED: Function to call next customer from specific location
+    async function callNextCustomer(location) {
+      const nextCustomer = getNextCustomer(location);
+      
+      if (!nextCustomer) {
+        alert(`No customers in ${location} queue`);
+        return;
+      }
+
+      try {
+        // Store the current customer data before any operations
+        let customerToMoveBack = null;
+        if (currentlyServedCustomer && currentlyServedCustomer.queueNumber) {
+          customerToMoveBack = { ...currentlyServedCustomer }; // Create a copy
+          console.log(`Will move ${customerToMoveBack.queueNumber} back to ${customerToMoveBack.location.toLowerCase()} queue`);
+        }
+
+        // First, add the new customer to nowServing
+        const nowServingData = {
+          name: nextCustomer.name || '',
+          email: nextCustomer.email || '',
+          phone: nextCustomer.phone || '',
+          location: nextCustomer.location,
+          guests: nextCustomer.guests || 1,
+          queueNumber: nextCustomer.queueNumber,
+          timestamp: nextCustomer.timestamp || new Date().toISOString(),
+          calledAt: firebase.database.ServerValue.TIMESTAMP,
+          status: 'serving',
+          createdAt: nextCustomer.createdAt || firebase.database.ServerValue.TIMESTAMP,
+          originalFirebaseKey: nextCustomer.firebaseKey
+        };
+
+        // Add new customer to nowServing
+        const nowServingRef = database.ref('nowServing').push();
+        await nowServingRef.set(nowServingData);
+        
+        // Remove the new customer from their queue
+        await database.ref(`queues/${location}/${nextCustomer.firebaseKey}`).remove();
+        
+        console.log(`Called ${nextCustomer.queueNumber} (${nextCustomer.name}) from ${location} queue`);
+
+        // Now move the previous customer back to their queue if there was one
+        if (customerToMoveBack) {
+          await moveCustomerBackToQueue(customerToMoveBack);
+        }
+        
+      } catch (error) {
+        console.error('Error calling next customer:', error);
+        alert('Error calling next customer. Please try again.');
+      }
+    }
+
+    // Function to mark current customer as done without calling next
+    async function markCurrentCustomerDone() {
+      if (!currentlyServedCustomer) {
+        alert('No customer currently being served');
+        return;
+      }
+
+      if (!confirm(`Mark ${currentlyServedCustomer.name} (${currentlyServedCustomer.queueNumber}) as completed?`)) {
+        return;
+      }
+
+      // Disable the button to prevent multiple clicks
+      const doneBtn = document.getElementById('doneBtn');
+      doneBtn.disabled = true;
+      doneBtn.textContent = 'PROCESSING...';
+
+      try {
+        // Store customer info for logging
+        const customerName = currentlyServedCustomer.name;
+        const customerNumber = currentlyServedCustomer.queueNumber;
+        const firebaseKey = currentlyServedCustomer.firebaseKey;
+
+        // Get the date from the original timestamp (when they joined the queue)
+        const queueDate = new Date(currentlyServedCustomer.timestamp);
+        const dateKey = queueDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        // Prepare done customer data - create a clean copy
+        const doneCustomerData = {
+          name: currentlyServedCustomer.name,
+          email: currentlyServedCustomer.email,
+          phone: currentlyServedCustomer.phone,
+          queueNumber: currentlyServedCustomer.queueNumber,
+          guests: currentlyServedCustomer.guests,
+          location: currentlyServedCustomer.location,
+          timestamp: currentlyServedCustomer.timestamp,
+          calledAt: currentlyServedCustomer.calledAt,
+          completedAt: firebase.database.ServerValue.TIMESTAMP,
+          status: 'completed'
+        };
+        
+        // Move to done list organized by date
+        const doneRef = database.ref(`done/${dateKey}`).push();
+        await doneRef.set(doneCustomerData);
+        
+        // Remove from nowServing
+        await database.ref(`nowServing/${firebaseKey}`).remove();
+        
+        console.log(`Successfully marked ${customerNumber} (${customerName}) as done`);
+        
+        // Show success message
+        alert(`Successfully marked ${customerName} as completed`);
+        
+        // Reset button text
+        doneBtn.textContent = 'DONE';
+        
+      } catch (error) {
+        console.error('Error marking customer as done:', error);
+        console.error('Error details:', error.message);
+        alert(`Error marking customer as done: ${error.message}`);
+        
+        // Re-enable the button if there was an error
+        doneBtn.disabled = false;
+        doneBtn.textContent = 'DONE';
+      }
+    }
+
+    // Function to delete current customer entirely
+    async function deleteCurrentCustomer() {
+      if (!currentlyServedCustomer) {
+        alert('No customer currently being served');
+        return;
+      }
+
+      if (!confirm(`Delete ${currentlyServedCustomer.name} (${currentlyServedCustomer.queueNumber}) entirely from the system?`)) {
+        return;
+      }
+
+      try {
+        // Disable the delete button to prevent multiple clicks
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'DELETING...';
+
+        // Store reference before deletion for logging
+        const customerName = currentlyServedCustomer.name;
+        const customerNumber = currentlyServedCustomer.queueNumber;
+        const firebaseKey = currentlyServedCustomer.firebaseKey;
+
+        // Remove from nowServing entirely - no transfer to done list
+        await database.ref(`nowServing/${firebaseKey}`).remove();
+        
+        console.log(`Successfully deleted ${customerName} (${customerNumber}) from the system`);
+        
+        // Show success message
+        alert(`Successfully removed ${customerName} from the system`);
+        
+        // Reset button text
+        deleteBtn.textContent = 'DELETE';
+        
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        alert('Error deleting customer: ' + error.message);
+        
+        // Re-enable the button if there was an error
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'DELETE';
+      }
+    }
+
+    // Function to load queues and now serving from Firebase
+    function loadQueues() {
+      // Listen for indoor queue changes
+      database.ref('queues/indoor').on('value', (snapshot) => {
+        indoorQueueData = snapshot.val() || {};
+        displayQueue('indoor', indoorQueueData);
+        console.log('Indoor queue updated:', Object.keys(indoorQueueData).length, 'customers');
+      }, (error) => {
+        console.error('Error loading indoor queue:', error);
+        document.getElementById('indoorQueue').innerHTML = '<div class="error-message">Error loading indoor queue</div>';
+      });
+
+      // Listen for outdoor queue changes
+      database.ref('queues/outdoor').on('value', (snapshot) => {
+        outdoorQueueData = snapshot.val() || {};
+        displayQueue('outdoor', outdoorQueueData);
+        console.log('Outdoor queue updated:', Object.keys(outdoorQueueData).length, 'customers');
+      }, (error) => {
+        console.error('Error loading outdoor queue:', error);
+        document.getElementById('outdoorQueue').innerHTML = '<div class="error-message">Error loading outdoor queue</div>';
+      });
+
+      // Listen for "nowServing" changes
+      database.ref('nowServing').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+          // Get the first (and should be only) customer being served
+          const nowServingData = snapshot.val();
+          const firstKey = Object.keys(nowServingData)[0];
+          currentlyServedCustomer = nowServingData[firstKey];
+          currentlyServedCustomer.firebaseKey = firstKey; // Store the key for deletion
+          console.log('Now serving:', currentlyServedCustomer.queueNumber, '-', currentlyServedCustomer.name);
+        } else {
+          currentlyServedCustomer = null;
+          console.log('No one currently being served');
+        }
+        updateCurrentCallDisplay();
+      }, (error) => {
+        console.error('Error loading now serving:', error);
+      });
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Loading queue management system...');
+      loadQueues();
+      updateCurrentCallDisplay();
+    });
+
+    // Cleanup Firebase listeners when page unloads
+    window.addEventListener('beforeunload', function() {
+      database.ref('queues/indoor').off();
+      database.ref('queues/outdoor').off();
+      database.ref('nowServing').off();
+    });
+  </script>
 </body>
 </html>

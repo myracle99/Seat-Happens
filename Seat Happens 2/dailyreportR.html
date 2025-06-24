@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Report - Reservations</title>
-  <link rel="stylesheet" href="dailyreportR.css" />
+  <link rel="stylesheet" href="dailyreportR.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <a href="adminhomepage.html"><img src="back icon.png" alt="Back" class="icon back-icon" /></a>
+      <a href="adminhomepage.html"><img src="back icon.png" alt="Back" class="icon back-icon"></a>
       <div class="header-icons">
-        <img src="home icon.png" alt="Home" class="icon" />
-        <img src="profile icon.png" alt="Profile" class="icon" />
+        <img src="home icon.png" alt="Home" class="icon">
+        <img src="profile icon.png" alt="Profile" class="icon">
       </div>
     </header>
 
@@ -20,7 +20,7 @@
       <h1>DAILY REPORT - RESERVATIONS</h1>
 
       <div class="top-buttons">
-        <input type="date" id="reportDate" class="red-button calendar-button" title="Choose Date" />
+        <input type="date" id="reportDate" class="red-button calendar-button" title="Choose Date">
         <button class="red-button" id="loadReportBtn">Load Report</button>
         <button class="red-button" id="viewArchivesBtn">View Archives</button>
         <button class="red-button" id="viewDeletedBtn">View Deleted</button>
@@ -30,166 +30,390 @@
         <table>
           <thead>
             <tr>
-              <th>Status Name of Customer</th>
+              <th>Name</th>
               <th>Email</th>
-              <th>Phone Number</th>
-              <th>Number of Guests</th>
+              <th>Phone</th>
+              <th>Guests</th>
               <th>Place</th>
-              <th>Time Registered</th>
+              <th>Time</th>
             </tr>
           </thead>
-          <tbody id="reportBody"></tbody>
+          <tbody id="reportBody">
+            <tr>
+              <td colspan="6" class="no-data">Select a date and click Load Report</td>
+            </tr>
+          </tbody>
         </table>
       </div>
     </main>
   </div>
 
-  <div class="overlay" id="overlay" onclick="closePopup()"></div>
-  <div class="popup" id="popup">
-    <p id="popupInfo"></p>
-    <div id="popupTimestamps"></div>
-    <button onclick="closePopup()">Close</button>
-  </div>
+    <div class="overlay" id="overlay" onclick="closePopup()"></div>
+      <div class="popup" id="popup">
+        <p id="popupInfo"></p>
+        <div id="popupDetails"></div>
+        <div id="popupTimestamps"></div>
+        <button id="archiveButton">Archive</button>
+        <button id="deleteButton">Delete</button>
+        <button id="restoreButton">Restore</button>
+        <button id="closeButton">Close</button>
+      </div>
 
   <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+  let selectedRowData = null;
+  let currentView = 'done';
+  let selectedDate = null;
 
-const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('reportDate').value = today;
-  loadReport(); // Load initial data
-});
-
-// Button handlers
-document.getElementById('loadReportBtn').addEventListener('click', loadReport);
-document.getElementById('viewArchivesBtn').addEventListener('click', viewArchives);
-document.getElementById('viewDeletedBtn').addEventListener('click', viewDeleted);
-
-async function loadReport() {
-  try {
-    const date = document.getElementById('reportDate').value;
-    if (!date) return alert("Please select a date.");
-    
-    // Fetch from all three tables in parallel
-    const [activeRes, archivedRes, deletedRes] = await Promise.all([
-      fetchTableData('reservations', date),
-      fetchTableData('archived_reservations', date),
-      fetchTableData('deleted_reservations', date)
-    ]);
-    
-    // Combine all results
-    const allReservations = [
-      ...(activeRes.data || []),
-      ...(archivedRes.data || []),
-      ...(deletedRes.data || [])
-    ];
-    
-    console.log("Combined data:", allReservations);
-    displayResults(allReservations, "All Reservations");
-    
-  } catch (error) {
-    console.error("Error loading report:", error);
-    alert("Failed to load complete report");
+  // Debugging function
+  function debugLog(message) {
+    console.log(`[DEBUG] ${new Date().toLocaleTimeString()}: ${message}`);
   }
-}
 
-async function viewArchives() {
-  await fetchAndDisplay('archived_reservations', 'Archived Reservations');
-}
+  // Supabase configuration
+  const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w';
 
-async function viewDeleted() {
-  await fetchAndDisplay('deleted_reservations', 'Deleted Reservations');
-}
-
-// Shared fetch function
-async function fetchAndDisplay(tableName, displayName) {
-  try {
-    const date = document.getElementById('reportDate').value;
-    if (!date) return alert("Please select a date.");
-    
-    const { data, error } = await fetchTableData(tableName, date);
-    if (error) throw error;
-    
-    displayResults(data, displayName);
-  } catch (error) {
-    console.error(`Error fetching ${tableName}:`, error);
-    alert(`Failed to load ${displayName}`);
+  // Initialize Supabase client
+  async function initSupabase() {
+    try {
+      if (!window.supabase) {
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+        window.supabase = createClient(supabaseUrl, supabaseKey);
+        debugLog("Supabase initialized successfully");
+      }
+      return window.supabase;
+    } catch (error) {
+      debugLog("Supabase initialization failed: " + error.message);
+      throw error;
+    }
   }
-}
 
-// Core fetch function
-async function fetchTableData(tableName, date) {
-  const formattedDate = new Date(date).toISOString().split('T')[0];
-  console.log(`Fetching ${tableName} for:`, formattedDate);
-  
-  return await supabase
-    .from(tableName)
-    .select('*')
-    .eq('reservation_date', formattedDate)
-    .order('created_at', { ascending: false });
-}
+  // Test database connection
+  async function testConnection() {
+    try {
+      const supabase = await initSupabase();
+      debugLog("Testing database connection...");
+      
+      const { data, error } = await supabase
+        .from('completed_reservations')
+        .select('*')
+        .limit(1);
 
-// Display results
-function displayResults(data, title) {
-  const tbody = document.getElementById('reportBody');
-  tbody.innerHTML = '';
+      if (error) throw error;
+      
+      if (data.length > 0) {
+        debugLog("Connection successful - Data found");
+        return true;
+      } else {
+        debugLog("Connection successful - No data found");
+        return false;
+      }
+    } catch (error) {
+      debugLog("Connection test failed: " + error.message);
+      return false;
+    }
+  }
 
-  if (!data || data.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="no-data">
-          No ${title.toLowerCase()} found for selected date
-        </td>
-      </tr>
+  // Fetch data from specified table
+  async function fetchData(tableName) {
+    try {
+      const date = document.getElementById('reportDate').value;
+      if (!date) {
+        alert("Please select a date");
+        return;
+      }
+
+      // Update current view based on table being fetched
+      if (tableName === 'completed_reservations') currentView = 'done';
+      if (tableName === 'archived_reservations') currentView = 'archived';
+      if (tableName === 'deleted_reservations') currentView = 'deleted';
+
+      const supabase = await initSupabase();
+      debugLog(`Fetching data from ${tableName}...`);
+
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('reservation_date', date)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      debugLog(`Found ${data.length} records`);
+      displayData(data, tableName);
+    } catch (error) {
+      debugLog("Error fetching data: " + error.message);
+      document.getElementById('reportBody').innerHTML = `
+        <tr><td colspan="6">Error loading data. Check console for details.</td></tr>
+      `;
+    }
+  }
+
+  // Display data in table
+  function displayData(items, tableName) {
+    const tbody = document.getElementById('reportBody');
+    tbody.innerHTML = '';
+
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="no-data">
+            No ${tableName.replace('_', ' ')} found for selected date
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    items.forEach(item => {
+      const row = document.createElement('tr');
+      row.className = 'highlight-row';
+      row.innerHTML = `
+        <td>${item.name || 'N/A'}</td>
+        <td>${item.email || 'N/A'}</td>
+        <td>${item.phone || 'N/A'}</td>
+        <td>${item.guest_count || '0'}</td>
+        <td>${item.place || 'N/A'}</td>
+        <td>${item.reservation_time || 'N/A'}</td>
+      `;
+      row.addEventListener('click', () => openPopup(item));
+      tbody.appendChild(row);
+    });
+  }
+
+  function openPopup(entryData) {
+    selectedRowData = { ...entryData };
+
+    document.getElementById('popupInfo').textContent = `Reservation for: ${entryData.name}`;
+    document.getElementById('popupDetails').innerHTML = `
+      <strong>Email:</strong> ${entryData.email || 'N/A'}<br>
+      <strong>Phone:</strong> ${entryData.phone || 'N/A'}<br>
+      <strong>Guests:</strong> ${entryData.guest_count || '0'}<br>
+      <strong>Place:</strong> ${entryData.place || 'N/A'}
     `;
+
+    let timestampInfo = `
+      <strong>Time:</strong> ${entryData.reservation_time || 'N/A'}<br>
+      <strong>Created:</strong> ${new Date(entryData.created_at).toLocaleString()}
+    `;
+
+    if (entryData.archived_at) {
+      timestampInfo += `<br><strong>Archived:</strong> ${new Date(entryData.archived_at).toLocaleString()}`;
+    }
+    if (entryData.deleted_at) {
+      timestampInfo += `<br><strong>Deleted:</strong> ${new Date(entryData.deleted_at).toLocaleString()}`;
+    }
+
+    document.getElementById('popupTimestamps').innerHTML = `<small>${timestampInfo}</small>`;
+
+    // Show/hide buttons based on current view
+    const archiveBtn = document.getElementById('archiveButton');
+    const deleteBtn = document.getElementById('deleteButton');
+    const restoreBtn = document.getElementById('restoreButton');
+
+    if (currentView === 'done') {
+      archiveBtn.style.display = 'inline-block';
+      deleteBtn.style.display = 'inline-block';
+      restoreBtn.style.display = 'none';
+    } else {
+      archiveBtn.style.display = 'none';
+      deleteBtn.style.display = 'none';
+      restoreBtn.style.display = 'inline-block';
+    }
+
+    document.getElementById('popup').style.display = 'block';
+    document.getElementById('overlay').style.display = 'block';
+  }
+
+  function closePopup() {
+    document.getElementById('popup').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+    selectedRowData = null;
+  }
+
+async function archiveEntry() {
+  if (!selectedRowData) {
+    alert('No entry selected');
     return;
   }
 
-  data.forEach(item => {
-    const row = document.createElement('tr');
-    // Add status indicator if not active reservation
-    const statusBadge = item.status ? 
-      `<span class="status-badge ${item.status}">${item.status}</span>` : 
-      '<span class="status-badge active">active</span>';
+  try {
+    const supabase = await initSupabase();
     
-    row.innerHTML = `
-      <td>${statusBadge} ${item.name}</td>
-      <td>${item.email}</td>
-      <td>${item.phone}</td>
-      <td>${item.guest_count}</td>
-      <td>${item.place}</td>
-      <td>${item.reservation_time}</td>
-    `;
-    row.onclick = () => showDetails(item);
-    tbody.appendChild(row);
+    // First delete from completed_reservations
+    const { error: deleteError } = await supabase
+      .from('completed_reservations')
+      .delete()
+      .eq('id', selectedRowData.id);
+
+    if (deleteError) throw deleteError;
+
+    // Prepare data for archiving - exclude the original id
+    const { id, ...archiveData } = selectedRowData;
+    
+    // Insert into archived_reservations with a new ID
+    const { error: insertError } = await supabase
+      .from('archived_reservations')
+      .insert({
+        ...archiveData,
+        original_id: id,  // Store the original ID as reference
+        archived_at: new Date().toISOString()
+      });
+
+    if (insertError) throw insertError;
+
+    alert('Reservation archived successfully!');
+    closePopup();
+    fetchData('completed_reservations');
+  } catch (error) {
+    console.error('Archive error:', error);
+    alert(`Archive failed: ${error.message}`);
+  }
+}
+
+async function deleteEntry() {
+  if (!selectedRowData) {
+    alert('No entry selected');
+    return;
+  }
+
+  try {
+    const supabase = await initSupabase();
+    const sourceTable = currentView === 'done' ? 'completed_reservations' : 'archived_reservations';
+    
+    // Verify the record exists first
+    const { data: existingRecord, error: fetchError } = await supabase
+      .from(sourceTable)
+      .select('*')
+      .eq('id', selectedRowData.id)
+      .single();
+
+    if (fetchError || !existingRecord) {
+      throw new Error('Record not found or access denied');
+    }
+
+    // Delete from source table
+    const { error: deleteError } = await supabase
+      .from(sourceTable)
+      .delete()
+      .eq('id', selectedRowData.id);
+
+    if (deleteError) throw deleteError;
+
+    // Insert into deleted with explicit RLS-aware insert
+    const { error: insertError } = await supabase
+      .from('deleted_reservations')
+      .insert({
+        ...selectedRowData,
+        original_id: selectedRowData.id,
+        deleted_at: new Date().toISOString(),
+        source_table: currentView === 'done' ? 'completed' : 'archived'
+      }, { returning: 'minimal' });
+
+    if (insertError) throw insertError;
+
+    alert('Reservation deleted successfully!');
+    closePopup();
+    fetchData(sourceTable);
+  } catch (error) {
+    console.error('Delete error:', error);
+    alert(`Delete failed: ${error.message}`);
+  }
+}
+
+async function restoreEntry() {
+  if (!selectedRowData) {
+    alert('No entry selected');
+    return;
+  }
+
+  try {
+    const supabase = await initSupabase();
+    const sourceTable = currentView === 'archived' ? 'archived_reservations' : 'deleted_reservations';
+
+    // 1. Get the complete record from source table
+    const { data: sourceRecord, error: fetchError } = await supabase
+      .from(sourceTable)
+      .select('*')
+      .eq('id', selectedRowData.id)
+      .single();
+
+    if (fetchError || !sourceRecord) {
+      throw new Error('Record not found in source table');
+    }
+
+    // 2. Prepare data for restoration (without archive/delete specific fields)
+    const restoreData = {
+      name: sourceRecord.name,
+      email: sourceRecord.email,
+      phone: sourceRecord.phone,
+      guest_count: sourceRecord.guest_count,
+      place: sourceRecord.place,
+      reservation_time: sourceRecord.reservation_time,
+      reservation_date: sourceRecord.reservation_date,
+      created_at: sourceRecord.created_at || new Date().toISOString(),
+      original_id: sourceRecord.original_id || sourceRecord.id // Use original_id if available
+    };
+
+    // 3. Insert into completed_reservations
+    const { error: insertError } = await supabase
+      .from('completed_reservations')
+      .insert(restoreData);
+
+    if (insertError) throw insertError;
+
+    // 4. Delete from source table
+    const { error: deleteError } = await supabase
+      .from(sourceTable)
+      .delete()
+      .eq('id', selectedRowData.id);
+
+    if (deleteError) throw deleteError;
+
+    alert('Reservation restored successfully!');
+    closePopup();
+    
+    // Refresh the current view
+    fetchData(sourceTable);
+    
+  } catch (error) {
+    console.error('Restore error:', error);
+    alert(`Restore failed: ${error.message}`);
+  }
+}
+
+  // Initialize the page
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      // Set default date
+      document.getElementById('reportDate').valueAsDate = new Date();
+      
+      // Set up button handlers
+      document.getElementById('loadReportBtn').addEventListener('click', () => {
+        fetchData('completed_reservations');
+      });
+
+      document.getElementById('viewArchivesBtn').addEventListener('click', () => {
+        fetchData('archived_reservations');
+      });
+
+      document.getElementById('viewDeletedBtn').addEventListener('click', () => {
+        fetchData('deleted_reservations');
+      });
+
+      // Add popup button handlers
+      document.getElementById('closeButton').addEventListener('click', closePopup);
+      document.getElementById('archiveButton').addEventListener('click', archiveEntry);
+      document.getElementById('deleteButton').addEventListener('click', deleteEntry);
+      document.getElementById('restoreButton').addEventListener('click', restoreEntry);
+
+      // Initial connection test
+      await testConnection();
+      
+    } catch (error) {
+      console.error("Page initialization failed:", error);
+    }
   });
-}
-
-// Popup functions remain the same
-function showDetails(item) {
-  document.getElementById('popupInfo').innerHTML = `
-    <h3>Reservation Details</h3>
-    <p><strong>Status:</strong> ${item.status || 'active'}</p>
-    <p><strong>Name:</strong> ${item.name}</p>
-    <p><strong>Date:</strong> ${item.reservation_date}</p>
-    <p><strong>Time:</strong> ${item.reservation_time}</p>
-    <p><strong>Guests:</strong> ${item.guest_count}</p>
-    <p><strong>Contact:</strong> ${item.phone} | ${item.email}</p>
-    ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
-  `;
-  document.getElementById('popup').style.display = 'block';
-  document.getElementById('overlay').style.display = 'block';
-}
-
-window.closePopup = function() {
-  document.getElementById('popup').style.display = 'none';
-  document.getElementById('overlay').style.display = 'none';
-};
-  </script>
+</script>
 </body>
 </html>

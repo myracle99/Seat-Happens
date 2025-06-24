@@ -4,8 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Ches Cafe</title>
-  <link rel="stylesheet" href="adminlogin.css"> 
+  <link rel="stylesheet" href="adminlogin.css">
+  <style>
+    /* Optional: Add this if your CSS doesn't already position header icons */
+    .return-icon {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+    }
+  </style>
+</head>
 <body>
+  <!-- Return Icon -->
+  <a href="homepage.html">
+    <img src="back icon.png" alt="Back to Home" class="return-icon">
+  </a>
+
   <div class="login-container">
     <img src="chescafe logo.png" class="logo" alt="Ches Cafe Logo">
     
@@ -19,7 +36,6 @@
       
       <button type="submit">LOGIN</button>
     </form>
-
   </div>
 
   <script type="module" src="signin.js"></script>

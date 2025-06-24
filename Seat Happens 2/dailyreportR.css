@@ -58,6 +58,11 @@ h1 {
   background-color: #d10000;
 }
 
+.red-button.active-view {
+  background-color: #8B0000;
+  box-shadow: 0 0 0 2px white;
+}
+
 .calendar-button::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
@@ -78,7 +83,7 @@ table {
 }
 
 th, td {
-  padding: 10px;
+  padding: 12px 15px;
   border-bottom: 1px solid #ccc;
 }
 
@@ -88,9 +93,108 @@ th {
   border-radius: 10px 10px 0 0;
 }
 
+.highlight-row {
+  cursor: pointer;
+}
+
 .highlight-row:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+.popup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #222;
+  color: white;
+  border: 1px solid #444;
+  padding: 20px;
+  z-index: 1000;
+  border-radius: 10px;
+  box-shadow: 0 0 10px black;
+  max-width: 80%;
+}
+
+.popup button {
+  margin-top: 15px;
+  padding: 8px 16px;
+  background-color: #a30000;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
   cursor: pointer;
+}
+
+.popup button:hover {
+  background-color: #d10000;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.status-badge.active {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.status-badge.archived {
+  background-color: #2196F3;
+  color: white;
+}
+
+.status-badge.deleted {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Loading animation */
+.red-button.loading {
+  position: relative;
+  color: transparent;
+}
+
+.red-button.loading::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin: -8px 0 0 -8px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .popup {
@@ -133,100 +237,3 @@ th {
   background: rgba(0,0,0,0.5);
   z-index: 999;
 }
-
-.red-button.loading {
-  position: relative;
-  color: transparent;
-}
-
-.red-button.loading::after {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  top: 50%;
-  left: 50%;
-  margin: -8px 0 0 -8px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  border-top-color: transparent;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.no-data {
-  text-align: center;
-  padding: 20px;
-  color: #666;
-}
-
-/* Add to your dailyreportR.css */
-.red-button.active-view {
-  background-color: #8B0000; /* Darker red for active state */
-  box-shadow: 0 0 0 2px white;
-}
-
-.highlight-row:hover {
-  background-color: #f5f5f5;
-  cursor: pointer;
-}
-
-.no-data-message {
-  text-align: center;
-  padding: 20px;
-  color: #666;
-  font-style: italic;
-}
-
-.no-data {
-  text-align: center;
-  padding: 20px;
-  color: #666;
-}
-
-.test-data-btn {
-  margin-top: 10px;
-  padding: 8px 16px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.test-data-btn:hover {
-  background: #45a049;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.8em;
-  margin-right: 8px;
-}
-
-.status-badge.active {
-  background: #4CAF50;
-  color: white;
-}
-
-.status-badge.completed {
-  background: #2196F3;
-  color: white;
-}
-
-.status-badge.cancelled {
-  background: #f44336;
-  color: white;
-}
-
-.no-data {
-  text-align: center;
-  padding: 20px;
-  color: #666;
-}
-

@@ -39,13 +39,23 @@ header, main, footer {
   margin: 20px;
 }
 
-.home-icon {
-  width: 40px;
+
+
+.top-icons {
   position: absolute;
   top: 20px;
   right: 20px;
+  display: flex;
+  gap: 15px; /* space between icons */
+  z-index: 999; /* ensures it's on top of other elements */
+}
+
+.top-icons .icon {
+  width: 40px;
+  height: 40px;
   cursor: pointer;
 }
+
 
 .card {
   margin: 80px auto;
