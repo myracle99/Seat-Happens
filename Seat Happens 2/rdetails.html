@@ -6,26 +6,88 @@
   <title>Reservation Details - Ches Cafe</title>
   <link rel="stylesheet" href="rdetails.css" />
   <style>
-    /* Validation styles */
-    input:invalid {
-      border-color: #ff4444;
-      box-shadow: 0 0 5px rgba(255, 68, 68, 0.3);
+    /* Enhanced validation styles */
+    :root {
+      --error-color: #dc3545;
+      --success-color: #28a745;
+      --warning-color: #ffc107;
     }
-    input:valid {
-      border-color: #00C851;
+    
+    input:invalid, select:invalid, textarea:invalid {
+      border-color: var(--error-color);
+      box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     }
+    
+    input:valid, select:valid, textarea:valid {
+      border-color: var(--success-color);
+    }
+    
     .error-message {
-      color: #ff4444;
+      color: var(--error-color);
       font-size: 0.8rem;
       margin-top: 0.25rem;
       display: none;
     }
-    input:invalid + .error-message {
+    
+    input:invalid + .error-message,
+    select:invalid + .error-message,
+    textarea:invalid + .error-message {
       display: block;
+    }
+    
+    .summary-item {
+      transition: all 0.3s ease;
+    }
+    
+    .summary-item:hover {
+      background-color: #f8f9fa;
+      cursor: pointer;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .missing-selection {
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { color: inherit; }
+      50% { color: var(--error-color); }
+      100% { color: inherit; }
     }
   </style>
 </head>
-<body style="background-image: url('website-bg.png');">
+<body>
+  <div class="loading" id="loadingOverlay">
+    <div class="spinner"></div>
+  </div>
+
   <section class="page">
     <header>
       <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
@@ -35,55 +97,74 @@
     <main>
       <div class="card">
         <h2 data-translate="almostDone">You're almost done!</h2>
+        
+        <div class="alert alert-warning" id="missingFieldsAlert" style="display: none;">
+          Please complete all reservation details before submitting
+        </div>
 
         <div class="summary-section">
           <div class="summary-item" onclick="goToPage('reservedplace.html')">
             <label data-translate="placeLabel">Place:</label>
-            <span id="selected-place">Select a place</span>
+            <span id="selected-place" class="selection-display">Select a place</span>
           </div>
           <div class="summary-item" onclick="goToPage('guests.html')">
             <label data-translate="guestsLabel">Guests:</label>
-            <span id="guest-count">Select guests</span>
+            <span id="guest-count" class="selection-display">Select guests</span>
           </div>
           <div class="summary-item" onclick="goToPage('calendar.html')">
             <label data-translate="dateLabel">Date:</label>
-            <span id="selected-date">Select a date</span>
+            <span id="selected-date" class="selection-display">Select a date</span>
           </div>
           <div class="summary-item" onclick="goToPage('time.html')">
             <label data-translate="timeLabel">Time:</label>
-            <span id="selected-time">Select a time</span>
+            <span id="selected-time" class="selection-display">Select a time</span>
           </div>
         </div>
 
         <form id="reservationForm">
           <div class="form-group">
             <label for="name" data-translate="nameLabel">Name*</label>
-            <input type="text" id="name" name="name" pattern="[A-Za-z\s]+" title="Letters only" required />
-            <div class="error-message">Letters and spaces only</div>
+            <input type="text" id="name" name="name" 
+                   pattern="[A-Za-zÀ-ÿ\s\-']{2,50}" 
+                   title="Please enter a valid name (2-50 characters)" 
+                   required />
+            <div class="error-message" data-translate="nameError">Please enter a valid name (letters only, 2-50 characters)</div>
           </div>
+          
           <div class="form-group">
             <label for="phone" data-translate="phoneLabel">Phone Number*</label>
-            <input type="tel" id="phone" name="phone" pattern="[0-9]{11}" title="11 digits" required />
-            <div class="error-message">Exactly 11 digits required</div>
+            <input type="tel" id="phone" name="phone" 
+                   pattern="[0-9]{11}" 
+                   title="Please enter an 11-digit Philippine phone number" 
+                   required />
+            <div class="error-message" data-translate="phoneError">Please enter a valid 11-digit phone number</div>
           </div>
+          
           <div class="form-group">
             <label for="email" data-translate="emailLabel">Email Address*</label>
-            <input type="email" id="email" name="email" required />
-            <div class="error-message">Valid email required</div>
+            <input type="email" id="email" name="email" 
+                   required 
+                   title="Please enter a valid email address" />
+            <div class="error-message" data-translate="emailError">Please enter a valid email address</div>
           </div>
+          
           <div class="form-group">
             <label for="notes" data-translate="notesLabel">Notes (optional)</label>
-            <textarea id="notes" name="notes" rows="3"></textarea>
+            <textarea id="notes" name="notes" rows="3" maxlength="500"></textarea>
+            <small class="text-muted" data-translate="notesHint">Maximum 500 characters</small>
           </div>
-          <button type="submit" class="submit-btn" data-translate="bookNowBtn">Book Now</button>
+          
+          <button type="submit" class="submit-btn" data-translate="bookNowBtn" id="submitBtn">
+            Book Now
+          </button>
         </form>
       </div>
     </main>
 
     <footer>
-      <p><img src="location icon.png" alt="Location Icon" /> Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</p>
-      <p><img src="call icon.png" alt="Phone Icon" /> 0945 306 6376</p>
-      <p><img src="time icon.png" alt="Clock Icon" /> Monday-Sunday 10:00 AM - 10:00 PM</p>
+      <p><img src="location icon.png" alt="Location Icon" /> <span data-translate="address">Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</span></p>
+      <p><img src="call icon.png" alt="Phone Icon" /> <span data-translate="phone">0945 306 6376</span></p>
+      <p><img src="time icon.png" alt="Clock Icon" /> <span data-translate="hours">Monday-Sunday 10:00 AM - 10:00 PM</span></p>
     </footer>
   </section>
 
@@ -93,109 +174,246 @@
   </script>
 
   <script src="langModal.js"></script>
+  <script>
+  // Global function accessible to HTML
+  function goToPage(page) {
+    const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
+    window.location.href = `${page}?lang=${lang}`;
+  }
+</script>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- [Keep all your existing head content] -->
+</head>
+<body>
+  <!-- [Keep all your existing HTML structure] -->
+
   <script type="module">
     import { supabase } from './supabase.js';
 
-    // Prevent multiple submissions
-    let isProcessing = false;
+    // DOM Elements
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const reservationForm = document.getElementById('reservationForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const missingFieldsAlert = document.getElementById('missingFieldsAlert');
 
+    // Capacity configuration (must match your trigger logic)
+    const CAPACITY_CONFIG = {
+      INDOOR: {
+        limit: 50,
+        errorMessage: "Indoor seating is full for this time slot (Max 50 guests)"
+      },
+      OUTDOOR: {
+        limit: 100,
+        errorMessage: "Outdoor seating is full for this time slot (Max 100 guests)"
+      }
+    };
+
+    // State management
+    let isSubmitting = false;
+    const requiredSelections = ['selectedPlace', 'guestCount', 'selectedDate', 'selectedTime'];
+
+    // Initialize the page
     document.addEventListener('DOMContentLoaded', () => {
-      // Input sanitization
+      loadSelections();
+      setupFormValidation();
+      checkMissingSelections();
+      
+      if (window.translator) {
+        setTimeout(() => window.translator.retranslate(), 100);
+      }
+    });
+
+    function loadSelections() {
+      requiredSelections.forEach(field => {
+        const value = localStorage.getItem(field);
+        const elementId = field === 'guestCount' ? 'guest-count' : field.toLowerCase().replace('selected', 'selected-');
+        const element = document.getElementById(elementId);
+        
+        if (element && value) {
+          if (field === 'selectedDate') {
+            const d = new Date(value);
+            element.textContent = d.toLocaleDateString('en-US', { 
+              weekday: 'long', month: 'long', day: 'numeric' 
+            });
+          } else if (field === 'guestCount') {
+            element.textContent = `${value} guest${parseInt(value) > 1 ? 's' : ''}`;
+          } else {
+            element.textContent = value;
+          }
+          element.classList.remove('missing-selection');
+        }
+      });
+    }
+
+    function checkMissingSelections() {
+      const hasMissingFields = requiredSelections.some(field => !localStorage.getItem(field));
+      
+      if (hasMissingFields) {
+        missingFieldsAlert.style.display = 'block';
+        
+        requiredSelections.forEach(field => {
+          if (!localStorage.getItem(field)) {
+            const elementId = field === 'guestCount' ? 'guest-count' : field.toLowerCase().replace('selected', 'selected-');
+            const element = document.getElementById(elementId);
+            if (element) {
+              element.classList.add('missing-selection');
+              element.textContent = element.textContent.includes('Select') ? 
+                element.textContent : `Select ${field.replace('selected', '').replace(/([A-Z])/g, ' $1').toLowerCase()}`;
+            }
+          }
+        });
+      } else {
+        missingFieldsAlert.style.display = 'none';
+      }
+    }
+
+    async function checkCapacityBeforeSubmit(place, date, time, guestCount) {
+      try {
+        // First check current reservations for this timeslot
+        const { data: reservations, error } = await supabase
+          .from('reservations')
+          .select('guest_count')
+          .eq('reservation_date', date)
+          .eq('reservation_time', time)
+          .eq('place', place);
+
+        if (error) throw error;
+
+        const currentGuests = reservations.reduce((sum, row) => sum + row.guest_count, 0);
+        const maxCapacity = CAPACITY_CONFIG[place]?.limit || 0;
+        
+        console.log('Capacity Verification:', {
+          place,
+          time,
+          currentGuests,
+          maxCapacity,
+          attempting: guestCount,
+          remaining: maxCapacity - currentGuests
+        });
+
+        if (currentGuests + guestCount > maxCapacity) {
+          throw {
+            code: 'CAPACITY_EXCEEDED',
+            message: CAPACITY_CONFIG[place]?.errorMessage || 'Capacity exceeded',
+            current: currentGuests,
+            limit: maxCapacity
+          };
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Capacity check failed:', error);
+        throw error;
+      }
+    }
+
+    function setupFormValidation() {
       document.getElementById('name').addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^A-Za-z\s]/g, '');
+        e.target.value = e.target.value.replace(/[^A-Za-zÀ-ÿ\s\-']/g, '');
       });
       
       document.getElementById('phone').addEventListener('input', (e) => {
         e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
       });
 
-      // Load saved selections
-      const place = localStorage.getItem('selectedPlace');
-      const guests = localStorage.getItem('guestCount');
-      const date = localStorage.getItem('selectedDate');
-      const time = localStorage.getItem('selectedTime');
+      reservationForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (requiredSelections.some(field => !localStorage.getItem(field))) {
+          checkMissingSelections();
+          return;
+        }
 
-      document.getElementById('selected-place').textContent = place || 'Select a place';
-      document.getElementById('guest-count').textContent = guests ? `${guests} guest${guests > 1 ? 's' : ''}` : 'Select guests';
-      
-      if (date) {
-        const d = new Date(date);
-        document.getElementById('selected-date').textContent = d.toLocaleDateString('en-US', { 
-          weekday: 'long', month: 'long', day: 'numeric' 
-        });
-      }
+        if (isSubmitting) return;
+        isSubmitting = true;
+        
+        loadingOverlay.style.display = 'flex';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-btn"></span> Processing...';
 
-      document.getElementById('selected-time').textContent = time || 'Select a time';
+        // Collect form data
+        const formData = {
+          name: document.getElementById('name').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          phone: document.getElementById('phone').value.trim(),
+          place: localStorage.getItem('selectedPlace'),
+          guest_count: parseInt(localStorage.getItem('guestCount')),
+          reservation_date: localStorage.getItem('selectedDate'),
+          reservation_time: localStorage.getItem('selectedTime'),
+          notes: document.getElementById('notes').value.trim() || null,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        };
 
-     
-        document.getElementById('reservationForm').addEventListener('submit', async (e) => {
-          e.preventDefault();
-
-          if (isProcessing) return;
-          isProcessing = true;
-
-          const submitBtn = document.querySelector('.submit-btn');
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Processing...';
-
-          // Form data collection with corrected field names
-          const formData = {
-            name: document.getElementById('name').value.trim(),
-            email: document.getElementById('email').value.trim(),
-            phone: document.getElementById('phone').value.trim(),
-            place: localStorage.getItem('selectedPlace'),
-            guest_count: localStorage.getItem('guestCount'),
-            reservation_date: localStorage.getItem('selectedDate'),
-            reservation_time: localStorage.getItem('selectedTime'),
-            notes: document.getElementById('notes').value.trim() || null
-          };
-
-          try {
-            // Send email (keep original template variables)
-            await emailjs.send('service_vhgdmi8', 'template_kf9anff', {
-              customer_name: formData.name,
-              customer_email: formData.email,
-              customer_phone: formData.phone,
-              reservation_place: formData.place,
-              reservation_guests: formData.guest_count,
-              reservation_date: formData.reservation_date,
-              reservation_time: formData.reservation_time,
-              special_requests: formData.notes || 'None'
-            });
-
-            // Insert into Supabase with correct column names
-            const { data, error } = await supabase
-              .from('reservations')
-              .insert([{
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                place: formData.place,
-                guest_count: parseInt(formData.guest_count),
-                reservation_date: new Date(formData.reservation_date).toISOString(),
-                reservation_time: formData.reservation_time,
-                notes: formData.notes
-              }])
-              .select();
-
-            if (error) throw error;
-            window.location.href = `received.html?lang=${new URLSearchParams(window.location.search).get('lang') || 'en-US'}`;
-            
-          } catch (error) {
-            console.error('Error:', error);
-            alert('Submission failed. Please try again or call 0945 306 6376');
-          } finally {
-            isProcessing = false;
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Book Now';
+        try {
+          // Basic form validation
+          if (!formData.name || !formData.email || !formData.phone) {
+            throw new Error('Please fill in all required fields');
           }
-        });
-            });
 
-    function goToPage(page) {
-      const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
-      window.location.href = `${page}?lang=${lang}`;
+          // Client-side capacity check
+          await checkCapacityBeforeSubmit(
+            formData.place,
+            formData.reservation_date,
+            formData.reservation_time,
+            formData.guest_count
+          );
+
+          // Submit to Supabase
+          const { error } = await supabase
+            .from('reservations')
+            .insert([formData]);
+
+          if (error) {
+            // Parse trigger error messages
+            if (error.message.includes('Capacity exceeded')) {
+              const matches = error.message.match(/Current: (\d+)\/(\d+)/);
+              throw {
+                code: 'DB_CAPACITY_EXCEEDED',
+                message: error.message,
+                current: matches ? parseInt(matches[1]) : null,
+                limit: matches ? parseInt(matches[2]) : null
+              };
+            }
+            throw error;
+          }
+
+          // Clear selections and redirect
+          requiredSelections.forEach(field => localStorage.removeItem(field));
+          const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
+          window.location.href = `received.html?lang=${lang}`;
+          
+        } catch (error) {
+          console.error('Submission error:', error);
+          
+          let errorMessage = error.message || 'Failed to submit reservation. Please try again.';
+          
+          if (error.code === 'CAPACITY_EXCEEDED' || error.code === 'DB_CAPACITY_EXCEEDED') {
+            errorMessage = `
+              ${error.message}
+              \n\nCurrent bookings: ${error.current || 'unknown'}
+              \nCapacity: ${error.limit || 'unknown'}
+              \n\nPlease try:
+              - A different time slot
+              - ${formData.place === 'INDOOR' ? 'Outdoor seating' : 'Indoor seating'}
+              - Fewer guests
+              - Or call us at 0945 306 6376`;
+          }
+          
+          alert(errorMessage);
+        } finally {
+          loadingOverlay.style.display = 'none';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Book Now';
+          isSubmitting = false;
+        }
+      });
     }
   </script>
+</body>
+</html>
 </body>
 </html>

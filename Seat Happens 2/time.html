@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Select Time - Ches Cafe</title>
   <link rel="stylesheet" href="time.css" />
+  <style>
+    /* Additional styles for capacity indicators */
+    .capacity-info {
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .time-grid button.full {
+      background-color: #f8d7da;
+      color: #721c24;
+      cursor: not-allowed;
+    }
+    .time-grid button.available {
+      background-color: #d4edda;
+      color: #155724;
+    }
+  </style>
 </head>
 <body>
   <section class="page">
@@ -18,7 +35,10 @@
     <main>
       <div class="card">
         <h2>
-          <span data-translate="whatTime">What time would</span> <span id="guest-count" class="red-text">you</span> <span data-translate="joiningUs">be joining us?</span> <span data-translate="on">on</span>
+          <span data-translate="whatTime">What time would</span> 
+          <span id="guest-count" class="red-text">you</span> 
+          <span data-translate="joiningUs">be joining us?</span> 
+          <span data-translate="on">on</span>
           <span id="selected-date" class="red-text">Sunday, May 25</span>?
         </h2>
 
@@ -28,21 +48,12 @@
           <button id="outdoor-btn" data-translate="outdoor">OUTDOOR</button>
         </div>
 
+        <div class="capacity-info" id="capacity-display">
+          Capacity: <span id="current-capacity">50</span> guests maximum
+        </div>
+
         <div class="time-grid">
-          <!-- Time buttons -->
-          <button onclick="selectTime('10:00 AM')">10:00 AM</button>
-          <button onclick="selectTime('11:00 AM')">11:00 AM</button>
-          <button onclick="selectTime('12:00 PM')">12:00 PM</button>
-          <button onclick="selectTime('1:00 PM')">1:00 PM</button>
-          <button onclick="selectTime('2:00 PM')">2:00 PM</button>
-          <button onclick="selectTime('3:00 PM')">3:00 PM</button>
-          <button onclick="selectTime('4:00 PM')">4:00 PM</button>
-          <button onclick="selectTime('5:00 PM')">5:00 PM</button>
-          <button onclick="selectTime('6:00 PM')">6:00 PM</button>
-          <button onclick="selectTime('7:00 PM')">7:00 PM</button>
-          <button onclick="selectTime('8:00 PM')">8:00 PM</button>
-          <button onclick="selectTime('9:00 PM')">9:00 PM</button>
-          <button onclick="selectTime('9:30 PM')">9:30 PM</button>
+          <!-- Time buttons will be dynamically inserted here -->
         </div>
 
         <p class="note" data-translate="finalOrders">We take Final Orders at 9:30 PM.</p>
@@ -57,57 +68,189 @@
   </section>
 
   <script src="langModal.js"></script>
-  <script>
-    const guestCount = localStorage.getItem("guestCount") || 2;
-    const date = localStorage.getItem("selectedDate");
-    const place = localStorage.getItem("selectedPlace");
+  <script type="module">
+  import { supabase } from './supabase.js';
 
-    // Update guest text - this will be handled by the translator
+  // Configuration
+  const CAPACITY = {
+    INDOOR: 50,
+    OUTDOOR: 100
+  };
+
+  const TIME_SLOTS = [
+    '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM',
+    '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
+    '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '9:30 PM'
+  ];
+
+  // Load saved selections
+  const guestCount = parseInt(localStorage.getItem("guestCount") || 1);
+  const date = localStorage.getItem("selectedDate");
+  let place = localStorage.getItem("selectedPlace") || "INDOOR";
+  const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
+
+  function selectTime(time) {
+    localStorage.setItem("selectedTime", time);
+    window.location.href = `rdetails.html?lang=${lang}`;
+  }
+
+  function updateHeaderInfo() {
+    // Update guest count display
     let guestText = "you";
-    if (guestCount == 1) guestText = "you";
-    else if (guestCount == 2) guestText = "the 2 of you";
-    else guestText = `all ${guestCount} of you`;
-
+    if (guestCount === 2) guestText = "the 2 of you";
+    else if (guestCount > 2) guestText = `all ${guestCount} of you`;
     document.getElementById("guest-count").textContent = guestText;
 
-    // Format and display the date
+    // Update date display - FIXED THIS SECTION
     if (date) {
-      const d = new Date(date);
-      const options = { weekday: 'long', month: 'long', day: 'numeric' };
-      const formatted = d.toLocaleDateString('en-US', options);
-      document.getElementById("selected-date").textContent = formatted;
-    }
-
-    // Highlight selected place
-    if (place === "INDOOR") {
-      document.getElementById("indoor-btn").classList.add("selected");
-      document.getElementById("outdoor-btn").classList.remove("selected");
-    } else if (place === "OUTDOOR") {
-      document.getElementById("outdoor-btn").classList.add("selected");
-      document.getElementById("indoor-btn").classList.remove("selected");
-    }
-
-    function selectTime(time) {
-      localStorage.setItem("selectedTime", time);
-      
-      // Preserve language parameter when navigating
-      const currentLang = new URLSearchParams(window.location.search).get('lang');
-      let redirectUrl = "rdetails.html";
-      if (currentLang) {
-        redirectUrl += `?lang=${currentLang}`;
+      try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) throw new Error("Invalid date");
+        
+        const options = { 
+          weekday: 'long', 
+          month: 'long', 
+          day: 'numeric',
+          year: 'numeric' 
+        };
+        document.getElementById("selected-date").textContent = 
+          d.toLocaleDateString('en-US', options);
+      } catch (e) {
+        console.error("Date formatting error:", e);
+        document.getElementById("selected-date").textContent = "Selected date";
       }
-      
-      window.location.href = redirectUrl;
+    } else {
+      document.getElementById("selected-date").textContent = "Select a date";
     }
 
-    // Retranslate after DOM elements are updated
-    window.addEventListener('DOMContentLoaded', () => {
-      setTimeout(() => {
-        if (window.translator) {
-          window.translator.retranslate();
-        }
-      }, 100);
+    // Set up place selection buttons
+    document.getElementById("indoor-btn").addEventListener("click", () => {
+      place = "INDOOR";
+      localStorage.setItem("selectedPlace", place);
+      updateCapacityDisplay();
+      renderTimeButtons();
     });
-  </script>
+
+    document.getElementById("outdoor-btn").addEventListener("click", () => {
+      place = "OUTDOOR";
+      localStorage.setItem("selectedPlace", place);
+      updateCapacityDisplay();
+      renderTimeButtons();
+    });
+
+    updateCapacityDisplay();
+  }
+
+  function updateCapacityDisplay() {
+    const isIndoor = place === "INDOOR";
+    document.getElementById("indoor-btn").classList.toggle("selected", isIndoor);
+    document.getElementById("outdoor-btn").classList.toggle("selected", !isIndoor);
+    document.getElementById("current-capacity").textContent = isIndoor ? "50" : "100";
+  }
+
+async function fetchReservationCounts() {
+  try {
+    console.log(`[DEBUG] Fetching reservations for date: ${date}, place: ${place}`);
+    
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('reservation_time, guest_count, place')
+      .eq('reservation_date', date);
+
+    if (error) {
+      console.error('[SUPABASE ERROR]', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      throw error;
+    }
+
+    console.log(`[DEBUG] Found ${data.length} reservations for ${date}`);
+    
+    const counts = { INDOOR: {}, OUTDOOR: {} };
+    data.forEach(entry => {
+      const placeType = entry.place || "INDOOR";
+      counts[placeType][entry.reservation_time] = 
+        (counts[placeType][entry.reservation_time] || 0) + parseInt(entry.guest_count);
+    });
+
+    console.log('[DEBUG] Reservation counts by time slot:', counts);
+    return counts;
+
+  } catch (error) {
+    console.error('[ERROR] Failed to fetch reservations:', {
+      error: error,
+      date: date,
+      place: place,
+      timestamp: new Date().toISOString()
+    });
+    return { INDOOR: {}, OUTDOOR: {} };
+  }
+}
+
+ async function renderTimeButtons() {
+  const timeGrid = document.querySelector('.time-grid');
+  timeGrid.innerHTML = "";
+  
+  try {
+    console.log(`[DEBUG] Rendering time buttons for ${place} (Capacity: ${CAPACITY[place]})`);
+    
+    const reservationCounts = await fetchReservationCounts();
+    const placeCounts = reservationCounts[place] || {};
+    const capacity = CAPACITY[place];
+
+    TIME_SLOTS.forEach(time => {
+      const totalGuests = placeCounts[time] || 0;
+      const remaining = capacity - totalGuests;
+      const isAvailable = remaining >= guestCount;
+
+      console.log(`[DEBUG] Time Slot ${time}:`, {
+        totalGuests: totalGuests,
+        remaining: remaining,
+        isAvailable: isAvailable,
+        yourGroup: guestCount
+      });
+
+      const btn = document.createElement('button');
+      btn.textContent = time;
+      
+      if (isAvailable) {
+        btn.classList.add("available");
+        btn.addEventListener('click', () => selectTime(time));
+        if (remaining < 5) {
+          btn.textContent += ` (${remaining} left)`;
+        }
+      } else {
+        btn.classList.add("full");
+        btn.disabled = true;
+        btn.title = `Capacity exceeded (Max ${capacity} guests)`;
+        btn.textContent += ` (Full)`;
+      }
+
+      timeGrid.appendChild(btn);
+    });
+
+  } catch (error) {
+    console.error('[ERROR] Failed to render time buttons:', {
+      error: error,
+      timestamp: new Date().toISOString()
+    });
+    timeGrid.innerHTML = `<div class="error">Error loading time slots. Please try again.</div>`;
+  }
+}
+
+  // Initialize page
+  window.addEventListener('DOMContentLoaded', async () => {
+    updateHeaderInfo();
+    await renderTimeButtons();
+
+    // Trigger translation if needed
+    if (window.translator) {
+      setTimeout(() => window.translator.retranslate(), 100);
+    }
+  });
+</script>
 </body>
 </html>
