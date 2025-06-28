@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Report - Reservations</title>
   <link rel="stylesheet" href="dailyreportR.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -26,6 +30,14 @@
         <button class="red-button" id="loadReportBtn">Load Report</button>
         <button class="red-button" id="viewArchivesBtn">View Archives</button>
         <button class="red-button" id="viewDeletedBtn">View Deleted</button>
+        <div class="download-dropdown">
+          <button class="red-button" onclick="toggleDropdown()">Download Report ▼</button>
+          <div id="downloadDropdown" class="dropdown-content">
+            <a href="#" onclick="exportToCSV()">CSV</a>
+            <a href="#" onclick="exportToPDF()">PDF</a>
+            <a href="#" onclick="exportToExcel()">Excel</a>
+          </div>
+        </div>
       </div>
 
       <div class="report-table">
@@ -60,11 +72,134 @@
         <button id="restoreButton">Restore</button>
         <button id="closeButton">Close</button>
       </div>
-
-  <script type="module">
+      
+  <script>
   let selectedRowData = null;
   let currentView = 'done';
   let selectedDate = null;
+
+  // Toggle dropdown visibility
+  function toggleDropdown() {
+    const dropdown = document.getElementById("downloadDropdown");
+    dropdown.classList.toggle("show");
+  
+  // Close other open dropdowns
+  document.querySelectorAll('.dropdown-content').forEach(dd => {
+    if (dd !== dropdown && dd.classList.contains('show')) {
+      dd.classList.remove('show');
+    }
+  });
+}
+
+  // Close the dropdown if clicked outside
+  window.onclick = function(event) {
+    if (!event.target.matches('.red-button')) {
+      const dropdowns = document.getElementsByClassName("dropdown-content");
+      for (let i = 0; i < dropdowns.length; i++) {
+        const openDropdown = dropdowns[i];
+        if (openDropdown.classList.contains('show')) {
+          openDropdown.classList.remove('show');
+        }
+      }
+    }
+  }
+
+  // Export to CSV
+function exportToCSV() {
+  const table = document.querySelector('table');
+  const rows = table.querySelectorAll('tr');
+  let csvContent = "";
+  
+  rows.forEach(row => {
+    const rowData = [];
+    const cols = row.querySelectorAll('th, td');
+    
+    cols.forEach(col => {
+      rowData.push(`"${col.textContent.trim().replace(/"/g, '""')}"`);
+    });
+    
+    csvContent += rowData.join(",") + "\r\n";
+  });
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `${currentView}_report_${selectedDate || new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Export to Excel (XLSX)
+function exportToExcel() {
+  const table = document.querySelector('table');
+  const workbook = XLSX.utils.table_to_book(table);
+  XLSX.writeFile(workbook, `${currentView}_report_${selectedDate || new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// Updated Export to PDF function
+    function exportToPDF() {
+      const table = document.querySelector('table');
+      const title = `${currentView.toUpperCase()} Report - ${selectedDate || new Date().toLocaleDateString()}`;
+      
+      // Create new PDF document
+      const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+      
+      // Set font and color for the title
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(18);
+      pdf.setTextColor(0, 0, 0); // Black text
+      pdf.text(title, 40, 40);
+      
+      // Set font for the table
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      
+      // Get table data
+      const headers = [];
+      const rows = [];
+      
+      // Get headers
+      table.querySelectorAll('th').forEach(th => {
+        headers.push(th.textContent.trim());
+      });
+      
+      // Get rows
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach(td => {
+          row.push(td.textContent.trim());
+        });
+        rows.push(row);
+      });
+      
+      // Add table to PDF using autoTable
+      pdf.autoTable({
+        head: [headers],
+        body: rows,
+        startY: 60,
+        styles: {
+          textColor: [0, 0, 0], // Black text
+          fontSize: 8,
+          cellPadding: 5,
+          overflow: 'linebreak'
+        },
+        headStyles: {
+          fillColor: [220, 220, 220], // Light gray header
+          textColor: [0, 0, 0], // Black text
+          fontStyle: 'bold'
+        },
+        alternateRowStyles: {
+          fillColor: [240, 240, 240] // Alternate row color
+        },
+        margin: { top: 60 }
+      });
+      
+      // Save the PDF
+      pdf.save(`${currentView}_report_${selectedDate || new Date().toISOString().split('T')[0]}.pdf`);
+    }
+
 
   // Debugging function
   function debugLog(message) {
@@ -146,7 +281,7 @@
     } catch (error) {
       debugLog("Error fetching data: " + error.message);
       document.getElementById('reportBody').innerHTML = `
-        <tr><td colspan="6">Error loading data. Check console for details.</td></tr>
+        <tr><td colspan="6" class="no-data">Error loading data. Check console for details.</td></tr>
       `;
     }
   }

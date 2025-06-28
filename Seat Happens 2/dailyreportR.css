@@ -237,3 +237,37 @@ th {
   background: rgba(0,0,0,0.5);
   z-index: 999;
 }
+
+/* Download Dropdown Styles */
+.download-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #a30000;
+  min-width: 120px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.dropdown-content a {
+  color: white;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  text-align: left;
+  transition: background-color 0.3s;
+}
+
+.dropdown-content a:hover {
+  background-color: #d10000;
+}
+
+.show {
+  display: block;
+}
