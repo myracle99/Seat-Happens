@@ -134,11 +134,11 @@ function exportToExcel() {
   XLSX.writeFile(workbook, `${currentView}_report_${selectedDate || new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-// Updated Export to PDF function
+// Export to PDF function
     function exportToPDF() {
       const table = document.querySelector('table');
-      const title = `${currentView.toUpperCase()} Report - ${selectedDate || new Date().toLocaleDateString()}`;
-      
+      const title = `Queue Report - ${selectedDate || new Date().toLocaleDateString()}`;
+            
       // Create new PDF document
       const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
       
