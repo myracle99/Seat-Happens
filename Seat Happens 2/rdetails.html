@@ -185,234 +185,277 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- [Keep all your existing head content] -->
+
 </head>
 <body>
-  <!-- [Keep all your existing HTML structure] -->
 
-  <script type="module">
-    import { supabase } from './supabase.js';
 
-    // DOM Elements
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const reservationForm = document.getElementById('reservationForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const missingFieldsAlert = document.getElementById('missingFieldsAlert');
+ <script type="module">
+  import { supabase } from './supabase.js';
 
-    // Capacity configuration (must match your trigger logic)
-    const CAPACITY_CONFIG = {
-      INDOOR: {
-        limit: 50,
-        errorMessage: "Indoor seating is full for this time slot (Max 50 guests)"
-      },
-      OUTDOOR: {
-        limit: 100,
-        errorMessage: "Outdoor seating is full for this time slot (Max 100 guests)"
-      }
-    };
+  // Initialize EmailJS
+  emailjs.init('Wa4qxuVs1KGKA0WZ0');
 
-    // State management
-    let isSubmitting = false;
-    const requiredSelections = ['selectedPlace', 'guestCount', 'selectedDate', 'selectedTime'];
+  // DOM Elements
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const reservationForm = document.getElementById('reservationForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const missingFieldsAlert = document.getElementById('missingFieldsAlert');
 
-    // Initialize the page
-    document.addEventListener('DOMContentLoaded', () => {
-      loadSelections();
-      setupFormValidation();
-      checkMissingSelections();
+  // Capacity configuration (must match your trigger logic)
+  const CAPACITY_CONFIG = {
+    INDOOR: {
+      limit: 50,
+      errorMessage: "Indoor seating is full for this time slot (Max 50 guests)"
+    },
+    OUTDOOR: {
+      limit: 100,
+      errorMessage: "Outdoor seating is full for this time slot (Max 100 guests)"
+    }
+  };
+
+  // State management
+  let isSubmitting = false;
+  const requiredSelections = ['selectedPlace', 'guestCount', 'selectedDate', 'selectedTime'];
+
+  // Initialize the page
+  document.addEventListener('DOMContentLoaded', () => {
+    loadSelections();
+    setupFormValidation();
+    checkMissingSelections();
+    
+    if (window.translator) {
+      setTimeout(() => window.translator.retranslate(), 100);
+    }
+  });
+
+  function loadSelections() {
+    requiredSelections.forEach(field => {
+      const value = localStorage.getItem(field);
+      const elementId = field === 'guestCount' ? 'guest-count' : field.toLowerCase().replace('selected', 'selected-');
+      const element = document.getElementById(elementId);
       
-      if (window.translator) {
-        setTimeout(() => window.translator.retranslate(), 100);
+      if (element && value) {
+        if (field === 'selectedDate') {
+          const d = new Date(value);
+          element.textContent = d.toLocaleDateString('en-US', { 
+            weekday: 'long', month: 'long', day: 'numeric' 
+          });
+        } else if (field === 'guestCount') {
+          element.textContent = `${value} guest${parseInt(value) > 1 ? 's' : ''}`;
+        } else {
+          element.textContent = value;
+        }
+        element.classList.remove('missing-selection');
       }
     });
+  }
 
-    function loadSelections() {
+  function checkMissingSelections() {
+    const hasMissingFields = requiredSelections.some(field => !localStorage.getItem(field));
+    
+    if (hasMissingFields) {
+      missingFieldsAlert.style.display = 'block';
+      
       requiredSelections.forEach(field => {
-        const value = localStorage.getItem(field);
-        const elementId = field === 'guestCount' ? 'guest-count' : field.toLowerCase().replace('selected', 'selected-');
-        const element = document.getElementById(elementId);
-        
-        if (element && value) {
-          if (field === 'selectedDate') {
-            const d = new Date(value);
-            element.textContent = d.toLocaleDateString('en-US', { 
-              weekday: 'long', month: 'long', day: 'numeric' 
-            });
-          } else if (field === 'guestCount') {
-            element.textContent = `${value} guest${parseInt(value) > 1 ? 's' : ''}`;
-          } else {
-            element.textContent = value;
+        if (!localStorage.getItem(field)) {
+          const elementId = field === 'guestCount' ? 'guest-count' : field.toLowerCase().replace('selected', 'selected-');
+          const element = document.getElementById(elementId);
+          if (element) {
+            element.classList.add('missing-selection');
+            element.textContent = element.textContent.includes('Select') ? 
+              element.textContent : `Select ${field.replace('selected', '').replace(/([A-Z])/g, ' $1').toLowerCase()}`;
           }
-          element.classList.remove('missing-selection');
         }
       });
+    } else {
+      missingFieldsAlert.style.display = 'none';
     }
+  }
 
-    function checkMissingSelections() {
-      const hasMissingFields = requiredSelections.some(field => !localStorage.getItem(field));
+  async function checkCapacityBeforeSubmit(place, date, time, guestCount) {
+    try {
+      // First check current reservations for this timeslot
+      const { data: reservations, error } = await supabase
+        .from('reservations')
+        .select('guest_count')
+        .eq('reservation_date', date)
+        .eq('reservation_time', time)
+        .eq('place', place);
+
+      if (error) throw error;
+
+      const currentGuests = reservations.reduce((sum, row) => sum + row.guest_count, 0);
+      const maxCapacity = CAPACITY_CONFIG[place]?.limit || 0;
       
-      if (hasMissingFields) {
-        missingFieldsAlert.style.display = 'block';
-        
-        requiredSelections.forEach(field => {
-          if (!localStorage.getItem(field)) {
-            const elementId = field === 'guestCount' ? 'guest-count' : field.toLowerCase().replace('selected', 'selected-');
-            const element = document.getElementById(elementId);
-            if (element) {
-              element.classList.add('missing-selection');
-              element.textContent = element.textContent.includes('Select') ? 
-                element.textContent : `Select ${field.replace('selected', '').replace(/([A-Z])/g, ' $1').toLowerCase()}`;
-            }
-          }
-        });
-      } else {
-        missingFieldsAlert.style.display = 'none';
-      }
-    }
-
-    async function checkCapacityBeforeSubmit(place, date, time, guestCount) {
-      try {
-        // First check current reservations for this timeslot
-        const { data: reservations, error } = await supabase
-          .from('reservations')
-          .select('guest_count')
-          .eq('reservation_date', date)
-          .eq('reservation_time', time)
-          .eq('place', place);
-
-        if (error) throw error;
-
-        const currentGuests = reservations.reduce((sum, row) => sum + row.guest_count, 0);
-        const maxCapacity = CAPACITY_CONFIG[place]?.limit || 0;
-        
-        console.log('Capacity Verification:', {
-          place,
-          time,
-          currentGuests,
-          maxCapacity,
-          attempting: guestCount,
-          remaining: maxCapacity - currentGuests
-        });
-
-        if (currentGuests + guestCount > maxCapacity) {
-          throw {
-            code: 'CAPACITY_EXCEEDED',
-            message: CAPACITY_CONFIG[place]?.errorMessage || 'Capacity exceeded',
-            current: currentGuests,
-            limit: maxCapacity
-          };
-        }
-
-        return true;
-      } catch (error) {
-        console.error('Capacity check failed:', error);
-        throw error;
-      }
-    }
-
-    function setupFormValidation() {
-      document.getElementById('name').addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^A-Za-zÀ-ÿ\s\-']/g, '');
-      });
-      
-      document.getElementById('phone').addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+      console.log('Capacity Verification:', {
+        place,
+        time,
+        currentGuests,
+        maxCapacity,
+        attempting: guestCount,
+        remaining: maxCapacity - currentGuests
       });
 
-      reservationForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        if (requiredSelections.some(field => !localStorage.getItem(field))) {
-          checkMissingSelections();
-          return;
-        }
-
-        if (isSubmitting) return;
-        isSubmitting = true;
-        
-        loadingOverlay.style.display = 'flex';
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-btn"></span> Processing...';
-
-        // Collect form data
-        const formData = {
-          name: document.getElementById('name').value.trim(),
-          email: document.getElementById('email').value.trim(),
-          phone: document.getElementById('phone').value.trim(),
-          place: localStorage.getItem('selectedPlace'),
-          guest_count: parseInt(localStorage.getItem('guestCount')),
-          reservation_date: localStorage.getItem('selectedDate'),
-          reservation_time: localStorage.getItem('selectedTime'),
-          notes: document.getElementById('notes').value.trim() || null,
-          status: 'pending',
-          created_at: new Date().toISOString()
+      if (currentGuests + guestCount > maxCapacity) {
+        throw {
+          code: 'CAPACITY_EXCEEDED',
+          message: CAPACITY_CONFIG[place]?.errorMessage || 'Capacity exceeded',
+          current: currentGuests,
+          limit: maxCapacity
         };
+      }
 
-        try {
-          // Basic form validation
-          if (!formData.name || !formData.email || !formData.phone) {
-            throw new Error('Please fill in all required fields');
-          }
-
-          // Client-side capacity check
-          await checkCapacityBeforeSubmit(
-            formData.place,
-            formData.reservation_date,
-            formData.reservation_time,
-            formData.guest_count
-          );
-
-          // Submit to Supabase
-          const { error } = await supabase
-            .from('reservations')
-            .insert([formData]);
-
-          if (error) {
-            // Parse trigger error messages
-            if (error.message.includes('Capacity exceeded')) {
-              const matches = error.message.match(/Current: (\d+)\/(\d+)/);
-              throw {
-                code: 'DB_CAPACITY_EXCEEDED',
-                message: error.message,
-                current: matches ? parseInt(matches[1]) : null,
-                limit: matches ? parseInt(matches[2]) : null
-              };
-            }
-            throw error;
-          }
-
-          // Clear selections and redirect
-          requiredSelections.forEach(field => localStorage.removeItem(field));
-          const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
-          window.location.href = `received.html?lang=${lang}`;
-          
-        } catch (error) {
-          console.error('Submission error:', error);
-          
-          let errorMessage = error.message || 'Failed to submit reservation. Please try again.';
-          
-          if (error.code === 'CAPACITY_EXCEEDED' || error.code === 'DB_CAPACITY_EXCEEDED') {
-            errorMessage = `
-              ${error.message}
-              \n\nCurrent bookings: ${error.current || 'unknown'}
-              \nCapacity: ${error.limit || 'unknown'}
-              \n\nPlease try:
-              - A different time slot
-              - ${formData.place === 'INDOOR' ? 'Outdoor seating' : 'Indoor seating'}
-              - Fewer guests
-              - Or call us at 0945 306 6376`;
-          }
-          
-          alert(errorMessage);
-        } finally {
-          loadingOverlay.style.display = 'none';
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Book Now';
-          isSubmitting = false;
-        }
-      });
+      return true;
+    } catch (error) {
+      console.error('Capacity check failed:', error);
+      throw error;
     }
-  </script>
+  }
+
+  // NEW FUNCTION: Send confirmation email
+  async function sendConfirmationEmail(reservationData) {
+    try {
+      const formattedDate = new Date(reservationData.reservation_date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      const emailParams = {
+        customer_name: reservationData.name,
+        customer_phone: reservationData.phone,
+        reservation_place: reservationData.place,
+        reservation_guests: reservationData.guest_count,
+        reservation_date: formattedDate,
+        reservation_time: reservationData.reservation_time,
+        customer_email: reservationData.email,
+        reservation_notes: reservationData.notes || 'No special requests'
+      };
+
+      const response = await emailjs.send(
+        'service_vhgdmi8',      // Replace with your EmailJS Service ID
+        'template_kf9anff',     // Replace with your EmailJS Template ID
+        emailParams
+      );
+
+      console.log('Email sent:', response);
+      return true;
+    } catch (error) {
+      console.error('Email failed:', error);
+      return false;
+    }
+  }
+
+  function setupFormValidation() {
+    document.getElementById('name').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^A-Za-zÀ-ÿ\s\-']/g, '');
+    });
+    
+    document.getElementById('phone').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+    });
+
+    reservationForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (requiredSelections.some(field => !localStorage.getItem(field))) {
+        checkMissingSelections();
+        return;
+      }
+
+      if (isSubmitting) return;
+      isSubmitting = true;
+      
+      loadingOverlay.style.display = 'flex';
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-btn"></span> Processing...';
+
+      // Collect form data
+      const formData = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        place: localStorage.getItem('selectedPlace'),
+        guest_count: parseInt(localStorage.getItem('guestCount')),
+        reservation_date: localStorage.getItem('selectedDate'),
+        reservation_time: localStorage.getItem('selectedTime'),
+        notes: document.getElementById('notes').value.trim() || null,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+
+      try {
+        // Basic form validation
+        if (!formData.name || !formData.email || !formData.phone) {
+          throw new Error('Please fill in all required fields');
+        }
+
+        // Client-side capacity check
+        await checkCapacityBeforeSubmit(
+          formData.place,
+          formData.reservation_date,
+          formData.reservation_time,
+          formData.guest_count
+        );
+
+        // Submit to Supabase
+        const { error } = await supabase
+          .from('reservations')
+          .insert([formData]);
+
+        if (error) {
+          if (error.message.includes('Capacity exceeded')) {
+            const matches = error.message.match(/Current: (\d+)\/(\d+)/);
+            throw {
+              code: 'DB_CAPACITY_EXCEEDED',
+              message: error.message,
+              current: matches ? parseInt(matches[1]) : null,
+              limit: matches ? parseInt(matches[2]) : null
+            };
+          }
+          throw error;
+        }
+
+        // NEW: Send confirmation email
+        const emailSent = await sendConfirmationEmail(formData);
+        if (!emailSent) {
+          console.warn('Reservation saved but email failed');
+        }
+
+        // Clear selections and redirect
+        requiredSelections.forEach(field => localStorage.removeItem(field));
+        const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
+        window.location.href = `received.html?lang=${lang}`;
+        
+      } catch (error) {
+        console.error('Submission error:', error);
+        
+        let errorMessage = error.message || 'Failed to submit reservation. Please try again.';
+        
+        if (error.code === 'CAPACITY_EXCEEDED' || error.code === 'DB_CAPACITY_EXCEEDED') {
+          errorMessage = `
+            ${error.message}
+            \n\nCurrent bookings: ${error.current || 'unknown'}
+            \nCapacity: ${error.limit || 'unknown'}
+            \n\nPlease try:
+            - A different time slot
+            - ${formData.place === 'INDOOR' ? 'Outdoor seating' : 'Indoor seating'}
+            - Fewer guests
+            - Or call us at 0945 306 6376`;
+        }
+        
+        alert(errorMessage);
+      } finally {
+        loadingOverlay.style.display = 'none';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Book Now';
+        isSubmitting = false;
+      }
+    });
+  }
+</script>
 </body>
 </html>
 </body>
