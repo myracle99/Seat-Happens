@@ -5,21 +5,69 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 // DOM Elements
-const reservationBody = document.getElementById('reservation-body') || document.querySelector('tbody')
+const reservationBody = document.getElementById('reservationBody')
+const overdueReservationBody = document.getElementById('overdueReservationBody')
+
+// Convert 12-hour time to 24-hour format
+function convertTo24Hour(time12h) {
+  if (!time12h) return '00:00'
+  
+  // Clean up the input string
+  const cleaned = time12h.toString()
+    .trim()
+    .toUpperCase()
+    .replace(/([AP]M)/, ' $1') // Ensure space before AM/PM
+  
+  const [timePart, modifier] = cleaned.split(' ')
+  let [hours, minutes] = timePart.split(':')
+  
+  minutes = minutes || '00'
+  
+  if (hours === '12') hours = '00'
+  if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12)
+  
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
+}
+
+// Check if reservation is overdue
+function isReservationOverdue(reservation) {
+  if (!reservation.reservation_date || !reservation.reservation_time) return false
+  
+  try {
+    const time24 = convertTo24Hour(reservation.reservation_time)
+    const reservationDateTime = new Date(`${reservation.reservation_date}T${time24}`)
+    const now = new Date()
+    
+    return reservationDateTime < now
+  } catch (error) {
+    console.error('Error checking overdue status:', error)
+    return false
+  }
+}
 
 // Status formatter
-function formatStatus(status) {
+function formatStatus(status, isOverdue = false) {
+  if (isOverdue) return '⚠️ Overdue'
   if (!status || status.trim() === '') return 'Pending'
   status = status.toLowerCase()
-  if (status === 'completed' || status === 'done') return '✅ Completed'
+  if (status === 'completed') return '✅ Completed'
   if (status === 'cancelled') return '❌ Cancelled'
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 // Add reservation to table
-function addReservationToTable(reservation) {
+// Add reservation to table
+function addReservationToTable(reservation, isOverdue = false) {
   const row = document.createElement('tr')
   row.dataset.id = reservation.id
+
+  // Only show Cancel button if overdue, otherwise show both
+  const actionButtons = isOverdue 
+    ? `<button class="cancel-btn" data-id="${reservation.id}">✖ Cancel</button>`
+    : `
+      <button class="complete-btn" data-id="${reservation.id}">✔ Complete</button>
+      <button class="cancel-btn" data-id="${reservation.id}">✖ Cancel</button>
+    `;
 
   row.innerHTML = `
     <td>${reservation.place}</td>
@@ -30,67 +78,97 @@ function addReservationToTable(reservation) {
     <td>${reservation.phone}</td>
     <td>${reservation.email}</td>
     <td>${reservation.notes || ''}</td>
-    <td>${formatStatus(reservation.status)}</td>
+    <td>${formatStatus(reservation.status, isOverdue)}</td>
     <td class="action-buttons">
-      <button class="complete-btn" data-id="${reservation.id}">✔ Complete</button>
-      <button class="cancel-btn" data-id="${reservation.id}">✖ Cancel</button>
+      ${actionButtons}
     </td>
-  `
+  `;
 
-  row.querySelector('.complete-btn').addEventListener('click', () => handleComplete(reservation.id, row))
-  row.querySelector('.cancel-btn').addEventListener('click', () => handleCancel(reservation.id, row))
-
-  reservationBody.appendChild(row)
-}
-
-// Button handlers
-async function handleComplete(id, row) {
-  if (confirm("Mark this reservation as completed?")) {
-    const success = await updateReservationStatus(id, 'done', row)
-    if (success) {
-      showToast('Reservation completed successfully!', 'success')
-    }
+  // Only add event listeners for buttons that exist
+  const completeBtn = row.querySelector('.complete-btn');
+  if (completeBtn) {
+    completeBtn.addEventListener('click', () => handleComplete(reservation.id, row));
   }
+  
+  row.querySelector('.cancel-btn').addEventListener('click', () => handleCancel(reservation.id, row));
+
+  const targetBody = isOverdue ? overdueReservationBody : reservationBody;
+  targetBody.appendChild(row);
 }
 
 async function handleCancel(id, row) {
-  if (confirm("Permanently delete this reservation?")) {
-    const success = await deleteReservation(id, row)
-    if (success) {
-      showToast('Reservation deleted successfully!', 'success')
-    }
-  }
-}
+  if (!confirm("Cancel this reservation?")) return;
 
-// New function to handle permanent deletion
-async function deleteReservation(id, rowElement = null) {
+  const cancelBtn = row.querySelector('.cancel-btn');
+  const originalText = cancelBtn.textContent;
+  
   try {
-    // 1. Delete from database
-    const { error: deleteError } = await supabase
+    // Show loading state
+    cancelBtn.textContent = 'Cancelling...';
+    cancelBtn.disabled = true;
+
+    // Get reservation details
+    const { data: reservation, error: fetchError } = await supabase
       .from('reservations')
-      .delete()
+      .select('*')
       .eq('id', id)
+      .single();
 
-    if (deleteError) throw new Error(`Failed to delete: ${deleteError.message}`)
+    if (fetchError) throw new Error(`Failed to fetch reservation: ${fetchError.message}`);
+    if (!reservation.email) throw new Error('No email address found for this reservation');
 
-    // 2. Remove from UI if row element provided
-    if (rowElement) {
-      rowElement.remove()
-    }
+    // Prepare email parameters
+    const emailParams = {
+      to_email: reservation.email,  // This is REQUIRED by EmailJS
+      customer_name: reservation.name || 'Guest',
+      customer_phone: reservation.phone || 'Not provided',
+      reservation_place: reservation.place || 'Not specified',
+      reservation_guests: reservation.guest_count || 1,
+      reservation_date: reservation.reservation_date || 'Unknown date',
+      reservation_time: reservation.reservation_time || 'Unknown time',
+      reservation_id: id
+    };
 
-    return true
+    console.log('Email params:', emailParams);
 
+    // First move the reservation
+    const moved = await moveReservation(id, 'cancelled', row);
+    if (!moved) throw new Error('Failed to move reservation');
+
+    // Then send email
+    const emailResponse = await emailjs.send(
+      'service_vhgdmi8', // Replace with actual service ID
+      'template_og7265l', // Replace with actual template ID
+      emailParams
+    );
+
+    console.log('Email response:', emailResponse);
+    showToast('Reservation cancelled. Notification sent.', 'success');
+    
   } catch (error) {
-    console.error('Delete Error:', error)
-    showToast(`Error: ${error.message}`, 'error')
-    return false
+    console.error('Cancellation error:', error);
+    
+    if (error.message.includes('No email address')) {
+      // Proceed with cancellation but show warning about no email
+      await moveReservation(id, 'cancelled', row);
+      showToast('Reservation cancelled (no email notification sent - missing email)', 'warning');
+    } 
+    else if (error.status === 422) {
+      showToast('Error: Could not send email notification', 'error');
+    }
+    else {
+      showToast(`Error: ${error.message}`, 'error');
+    }
+    
+    // Restore button state
+    cancelBtn.textContent = originalText;
+    cancelBtn.disabled = false;
   }
 }
 
-// Modified update function (only for completing reservations)
-async function updateReservationStatus(id, newStatus, rowElement = null) {
+// Move reservation to completed_reservations
+async function moveReservation(id, newStatus, rowElement = null) {
   try {
-    // 1. Fetch original reservation
     const { data: originalData, error: fetchError } = await supabase
       .from('reservations')
       .select('*')
@@ -100,10 +178,8 @@ async function updateReservationStatus(id, newStatus, rowElement = null) {
     if (fetchError) throw new Error(`Database error: ${fetchError.message}`)
     if (!originalData) throw new Error('Reservation not found')
 
-    // 2. Prepare data for completed_reservations
     const now = new Date().toISOString()
     const dataToInsert = {
-      id: originalData.id,
       place: originalData.place,
       guest_count: originalData.guest_count,
       reservation_date: originalData.reservation_date,
@@ -113,23 +189,16 @@ async function updateReservationStatus(id, newStatus, rowElement = null) {
       email: originalData.email,
       notes: originalData.notes || null,
       status: newStatus,
-      created_at: now,
+      created_at: originalData.created_at || now,
       updated_at: now
     }
 
-    // 3. Insert into completed_reservations
     const { error: insertError } = await supabase
       .from('completed_reservations')
       .insert([dataToInsert])
 
-    if (insertError) {
-      if (insertError.code === '42501') {
-        throw new Error('Permission denied. Please check RLS policies.')
-      }
-      throw new Error(`Failed to save: ${insertError.message}`)
-    }
+    if (insertError) throw new Error(`Failed to save: ${insertError.message}`)
 
-    // 4. Delete from original table
     const { error: deleteError } = await supabase
       .from('reservations')
       .delete()
@@ -137,15 +206,11 @@ async function updateReservationStatus(id, newStatus, rowElement = null) {
 
     if (deleteError) throw new Error(`Failed to remove: ${deleteError.message}`)
 
-    // 5. Update UI if row element provided
-    if (rowElement) {
-      rowElement.remove()
-    }
-
+    if (rowElement) rowElement.remove()
     return true
 
   } catch (error) {
-    console.error('Update Error:', error)
+    console.error('Move Reservation Error:', error)
     showToast(`Error: ${error.message}`, 'error')
     return false
   }
@@ -171,16 +236,35 @@ async function loadReservations() {
 
     if (error) throw error
 
-    reservationBody.innerHTML = data.length 
-      ? '' 
-      : '<tr><td colspan="10" class="no-data">No reservations found</td></tr>'
+    // Clear tables
+    if (reservationBody) reservationBody.innerHTML = ''
+    if (overdueReservationBody) overdueReservationBody.innerHTML = ''
 
-    data.forEach(addReservationToTable)
+    if (data.length === 0) {
+      const noDataMsg = '<tr><td colspan="10" class="no-data">No reservations found</td></tr>'
+      if (reservationBody) reservationBody.innerHTML = noDataMsg
+      return
+    }
+
+    // Process each reservation
+    data.forEach(reservation => {
+      const overdue = isReservationOverdue(reservation)
+      if (overdue) {
+        if (overdueReservationBody) addReservationToTable(reservation, true)
+      } else {
+        if (reservationBody) addReservationToTable(reservation)
+      }
+    })
+
+    // Add "no overdue" message if needed
+    if (overdueReservationBody && overdueReservationBody.children.length === 0) {
+      overdueReservationBody.innerHTML = '<tr><td colspan="10" class="no-data">No overdue reservations</td></tr>'
+    }
+
   } catch (error) {
     console.error('Load Error:', error)
-    reservationBody.innerHTML = `
-      <tr><td colspan="10" class="error">Error loading reservations: ${error.message}</td></tr>
-    `
+    const errorMsg = `<tr><td colspan="10" class="error">Error loading reservations: ${error.message}</td></tr>`
+    if (reservationBody) reservationBody.innerHTML = errorMsg
   }
 }
 
@@ -212,6 +296,11 @@ document.addEventListener('DOMContentLoaded', () => {
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       .no-data, .error { text-align: center; padding: 20px; }
       .error { color: #F44336; }
+      
+      /* Overdue row styling */
+      tr[data-id] td {
+        background-color: rgba(255, 0, 0, 0.1);
+      }
     `
     document.head.appendChild(style)
   }

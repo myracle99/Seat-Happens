@@ -4,24 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Select Time - Ches Cafe</title>
-  <link rel="stylesheet" href="time.css" />
-  <style>
-    /* Additional styles for capacity indicators */
-    .capacity-info {
-      margin: 1rem 0;
-      font-size: 0.9rem;
-      color: #666;
-    }
-    .time-grid button.full {
-      background-color: #f8d7da;
-      color: #721c24;
-      cursor: not-allowed;
-    }
-    .time-grid button.available {
-      background-color: #d4edda;
-      color: #155724;
-    }
-  </style>
+<link rel ="stylesheet" href="time.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ephesis&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  
+  <!-- Language Modal -->
+  <link rel="stylesheet" href="langModal.css">
 </head>
 <body>
   <section class="page">
@@ -52,9 +42,11 @@
           Capacity: <span id="current-capacity">50</span> guests maximum
         </div>
 
-        <div class="time-grid">
-          <!-- Time buttons will be dynamically inserted here -->
+        <div class="time-grid" id="time-grid">
+          <!-- Time buttons will be inserted here -->
         </div>
+
+        <div id="debug-info" class="debug-info"></div>
 
         <p class="note" data-translate="finalOrders">We take Final Orders at 9:30 PM.</p>
       </div>
@@ -69,188 +61,208 @@
 
   <script src="langModal.js"></script>
   <script type="module">
-  import { supabase } from './supabase.js';
+    // Configuration
+    const CAPACITY = {
+      INDOOR: 50,
+      OUTDOOR: 100
+    };
 
-  // Configuration
-  const CAPACITY = {
-    INDOOR: 50,
-    OUTDOOR: 100
-  };
+    const TIME_SLOTS = [
+      '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM',
+      '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
+      '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '9:30 PM'
+    ];
 
-  const TIME_SLOTS = [
-    '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM',
-    '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
-    '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '9:30 PM'
-  ];
+    // DOM Elements
+    const timeGrid = document.getElementById('time-grid');
+    const debugInfo = document.getElementById('debug-info');
 
-  // Load saved selections
-  const guestCount = parseInt(localStorage.getItem("guestCount") || 1);
-  const date = localStorage.getItem("selectedDate");
-  let place = localStorage.getItem("selectedPlace") || "INDOOR";
-  const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
+    // Load saved selections
+    const guestCount = parseInt(localStorage.getItem("guestCount") || 1);
+    let date = localStorage.getItem("selectedDate");
+    let place = localStorage.getItem("selectedPlace") || "INDOOR";
+    const lang = new URLSearchParams(window.location.search).get('lang') || 'en-US';
 
-  function selectTime(time) {
-    localStorage.setItem("selectedTime", time);
-    window.location.href = `rdetails.html?lang=${lang}`;
-  }
+    // Debug mode (set to true to see logs)
+    const DEBUG_MODE = false;
 
-  function updateHeaderInfo() {
-    // Update guest count display
-    let guestText = "you";
-    if (guestCount === 2) guestText = "the 2 of you";
-    else if (guestCount > 2) guestText = `all ${guestCount} of you`;
-    document.getElementById("guest-count").textContent = guestText;
-
-    // Update date display - FIXED THIS SECTION
-    if (date) {
-      try {
-        const d = new Date(date);
-        if (isNaN(d.getTime())) throw new Error("Invalid date");
-        
-        const options = { 
-          weekday: 'long', 
-          month: 'long', 
-          day: 'numeric',
-          year: 'numeric' 
-        };
-        document.getElementById("selected-date").textContent = 
-          d.toLocaleDateString('en-US', options);
-      } catch (e) {
-        console.error("Date formatting error:", e);
-        document.getElementById("selected-date").textContent = "Selected date";
+    function logDebug(message) {
+      if (DEBUG_MODE) {
+        console.log(message);
+        debugInfo.innerHTML += `<div>${message}</div>`;
+        debugInfo.style.display = 'block';
       }
-    } else {
-      document.getElementById("selected-date").textContent = "Select a date";
     }
 
-    // Set up place selection buttons
-    document.getElementById("indoor-btn").addEventListener("click", () => {
-      place = "INDOOR";
-      localStorage.setItem("selectedPlace", place);
-      updateCapacityDisplay();
-      renderTimeButtons();
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', async () => {
+      logDebug(`Page loaded at ${new Date()}`);
+      updateHeaderInfo();
+      await renderTimeButtons();
+
+      if (window.translator) {
+        setTimeout(() => window.translator.retranslate(), 100);
+      }
     });
 
-    document.getElementById("outdoor-btn").addEventListener("click", () => {
-      place = "OUTDOOR";
-      localStorage.setItem("selectedPlace", place);
-      updateCapacityDisplay();
-      renderTimeButtons();
-    });
-
-    updateCapacityDisplay();
-  }
-
-  function updateCapacityDisplay() {
-    const isIndoor = place === "INDOOR";
-    document.getElementById("indoor-btn").classList.toggle("selected", isIndoor);
-    document.getElementById("outdoor-btn").classList.toggle("selected", !isIndoor);
-    document.getElementById("current-capacity").textContent = isIndoor ? "50" : "100";
-  }
-
-async function fetchReservationCounts() {
-  try {
-    console.log(`[DEBUG] Fetching reservations for date: ${date}, place: ${place}`);
-    
-    const { data, error } = await supabase
-      .from('reservations')
-      .select('reservation_time, guest_count, place')
-      .eq('reservation_date', date);
-
-    if (error) {
-      console.error('[SUPABASE ERROR]', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-      throw error;
+    function selectTime(time) {
+      logDebug(`Time selected: ${time}`);
+      localStorage.setItem("selectedTime", time);
+      window.location.href = `rdetails.html?lang=${lang}`;
     }
 
-    console.log(`[DEBUG] Found ${data.length} reservations for ${date}`);
-    
-    const counts = { INDOOR: {}, OUTDOOR: {} };
-    data.forEach(entry => {
-      const placeType = entry.place || "INDOOR";
-      counts[placeType][entry.reservation_time] = 
-        (counts[placeType][entry.reservation_time] || 0) + parseInt(entry.guest_count);
-    });
+    function updateHeaderInfo() {
+      // Update guest count display
+      let guestText = "you";
+      if (guestCount === 2) guestText = "the 2 of you";
+      else if (guestCount > 2) guestText = `all ${guestCount} of you`;
+      document.getElementById("guest-count").textContent = guestText;
 
-    console.log('[DEBUG] Reservation counts by time slot:', counts);
-    return counts;
-
-  } catch (error) {
-    console.error('[ERROR] Failed to fetch reservations:', {
-      error: error,
-      date: date,
-      place: place,
-      timestamp: new Date().toISOString()
-    });
-    return { INDOOR: {}, OUTDOOR: {} };
-  }
-}
-
- async function renderTimeButtons() {
-  const timeGrid = document.querySelector('.time-grid');
-  timeGrid.innerHTML = "";
-  
-  try {
-    console.log(`[DEBUG] Rendering time buttons for ${place} (Capacity: ${CAPACITY[place]})`);
-    
-    const reservationCounts = await fetchReservationCounts();
-    const placeCounts = reservationCounts[place] || {};
-    const capacity = CAPACITY[place];
-
-    TIME_SLOTS.forEach(time => {
-      const totalGuests = placeCounts[time] || 0;
-      const remaining = capacity - totalGuests;
-      const isAvailable = remaining >= guestCount;
-
-      console.log(`[DEBUG] Time Slot ${time}:`, {
-        totalGuests: totalGuests,
-        remaining: remaining,
-        isAvailable: isAvailable,
-        yourGroup: guestCount
-      });
-
-      const btn = document.createElement('button');
-      btn.textContent = time;
-      
-      if (isAvailable) {
-        btn.classList.add("available");
-        btn.addEventListener('click', () => selectTime(time));
-        if (remaining < 5) {
-          btn.textContent += ` (${remaining} left)`;
+      // Update date display
+      if (date) {
+        try {
+          const d = new Date(date);
+          if (isNaN(d.getTime())) throw new Error("Invalid date");
+          
+          const options = { 
+            weekday: 'long', 
+            month: 'long', 
+            day: 'numeric',
+            year: 'numeric' 
+          };
+          document.getElementById("selected-date").textContent = 
+            d.toLocaleDateString('en-US', options);
+        } catch (e) {
+          logDebug(`Date formatting error: ${e}`);
+          document.getElementById("selected-date").textContent = "Selected date";
         }
       } else {
-        btn.classList.add("full");
-        btn.disabled = true;
-        btn.title = `Capacity exceeded (Max ${capacity} guests)`;
-        btn.textContent += ` (Full)`;
+        document.getElementById("selected-date").textContent = "Select a date";
       }
 
-      timeGrid.appendChild(btn);
-    });
+      // Set up place selection buttons
+      document.getElementById("indoor-btn").addEventListener("click", () => {
+        place = "INDOOR";
+        localStorage.setItem("selectedPlace", place);
+        logDebug(`Place changed to: ${place}`);
+        updateCapacityDisplay();
+        renderTimeButtons();
+      });
 
-  } catch (error) {
-    console.error('[ERROR] Failed to render time buttons:', {
-      error: error,
-      timestamp: new Date().toISOString()
-    });
-    timeGrid.innerHTML = `<div class="error">Error loading time slots. Please try again.</div>`;
-  }
-}
+      document.getElementById("outdoor-btn").addEventListener("click", () => {
+        place = "OUTDOOR";
+        localStorage.setItem("selectedPlace", place);
+        logDebug(`Place changed to: ${place}`);
+        updateCapacityDisplay();
+        renderTimeButtons();
+      });
 
-  // Initialize page
-  window.addEventListener('DOMContentLoaded', async () => {
-    updateHeaderInfo();
-    await renderTimeButtons();
-
-    // Trigger translation if needed
-    if (window.translator) {
-      setTimeout(() => window.translator.retranslate(), 100);
+      updateCapacityDisplay();
     }
-  });
-</script>
+
+    function updateCapacityDisplay() {
+      const isIndoor = place === "INDOOR";
+      document.getElementById("indoor-btn").classList.toggle("selected", isIndoor);
+      document.getElementById("outdoor-btn").classList.toggle("selected", !isIndoor);
+      document.getElementById("current-capacity").textContent = isIndoor ? "50" : "100";
+    }
+
+    function convertTo24Hour(time12h) {
+      if (!time12h) return '00:00';
+      
+      const cleaned = time12h.toString()
+        .trim()
+        .toUpperCase()
+        .replace(/([AP]M)/, ' $1');
+      
+      const [timePart, modifier] = cleaned.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      
+      minutes = minutes || '00';
+      
+      if (hours === '12') hours = '00';
+      if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+      
+      return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+    }
+
+    async function renderTimeButtons() {
+      logDebug(`Starting renderTimeButtons for ${place}`);
+      timeGrid.innerHTML = "";
+      
+      try {
+        // Get current date and time
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const isToday = date === today;
+        logDebug(`Current date: ${today}, Selected date: ${date}, Is today: ${isToday}`);
+
+        // Simulate API response for testing
+        const testReservations = {
+          "INDOOR": {
+            "10:00 AM": 0,
+            "2:00 PM":0
+          },
+          "OUTDOOR": {
+            "6:00 PM": 0
+          }
+        };
+
+        // Use test data (replace with actual API call in production)
+        const reservationCounts = testReservations;
+        logDebug(`Using test reservation data:`, reservationCounts);
+
+        const placeCounts = reservationCounts[place] || {};
+        const capacity = CAPACITY[place];
+
+        TIME_SLOTS.forEach(time => {
+          const totalGuests = placeCounts[time] || 0;
+          const remaining = capacity - totalGuests;
+          
+          // Convert time slot to 24-hour format for comparison
+          const time24 = convertTo24Hour(time);
+          const slotDateTime = new Date(`${date}T${time24}`);
+          
+          // Check if time is in the past (only for today)
+          const isPastTime = isToday && slotDateTime < now;
+          const isAvailable = remaining >= guestCount && !isPastTime;
+
+          logDebug(`Time slot ${time}: Total=${totalGuests}, Remaining=${remaining}, Past=${isPastTime}, Available=${isAvailable}`);
+
+          const btn = document.createElement('button');
+          btn.textContent = time;
+          
+          if (isAvailable) {
+            btn.classList.add("available");
+            btn.addEventListener('click', () => selectTime(time));
+            if (remaining < 5) {
+              btn.textContent += ` (${remaining} left)`;
+            }
+          } else {
+            if (isPastTime) {
+              btn.classList.add("passed");
+              btn.textContent += ` (Passed)`;
+            } else {
+              btn.classList.add("full");
+              btn.textContent += ` (Full)`;
+            }
+            btn.disabled = true;
+          }
+
+          timeGrid.appendChild(btn);
+        });
+
+        logDebug(`Time slots rendered successfully`);
+
+      } catch (error) {
+        logDebug(`Error rendering time buttons: ${error}`);
+        timeGrid.innerHTML = `
+          <div style="color: white; grid-column: 1/-1; text-align: center;">
+            Error loading time slots. Please try again later.
+          </div>
+        `;
+      }
+    }
+  </script>
 </body>
 </html>

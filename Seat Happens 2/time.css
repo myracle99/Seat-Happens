@@ -1,130 +1,159 @@
-body, html {
-  margin: 0;
-  padding: 0;
-  font-family: 'Segoe UI', sans-serif;
-  color: white;
-  background: black;
-}
 
-.page {
-  background-image: url('webiste\ bg.jpg');
-  background-size: cover;
-  background-repeat: no-repeat;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      background: black;
+    }
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1em;
-}
+    .page {
+      background-image: url('webiste bg.jpg');
+      background-size: cover;
+      background-repeat: no-repeat;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-.logo {
-  height: 60px;
-}
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1em;
+    }
 
-.home-icon {
-  height: 50px;
-}
+    .logo {
+      height: 60px;
+    }
 
-main {
-  flex-grow: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+    .home-icon {
+      height: 50px;
+    }
 
-.card {
-  background: rgba(0, 0, 0, 0.6);
-  padding: 2em;
-  border-radius: 30px;
-  max-width: 400px;
-  text-align: center;
-  box-shadow: 0 0 30px rgba(255, 0, 0, 0.4);
-}
+    main {
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-.card h2 {
-  font-size: 1em;
-  margin-bottom: 1em;
-}
+    .card {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2em;
+      border-radius: 30px;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(255, 0, 0, 0.4);
+    }
 
-.red-text {
-  color: red;
-  font-weight: bold;
-}
+    .card h2 {
+      font-size: 1em;
+      margin-bottom: 1em;
+    }
 
-.button-group {
-  display: flex;
-  justify-content: center;
-  gap: 1em;
-  margin: 1em 0;
-}
+    .red-text {
+      color: red;
+      font-weight: bold;
+    }
 
-.button-group button {
-  background: red;
-  color: white;
-  border: none;
-  padding: 0.5em 1.5em;
-  border-radius: 20px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.3s;
-}
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 1em;
+      margin: 1em 0;
+    }
 
-.button-group .selected {
-  background: white;
-  color: red;
-}
+    .button-group button {
+      background: red;
+      color: white;
+      border: none;
+      padding: 0.5em 1.5em;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
 
-.time-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75em;
-  margin: 1.5em 0;
-}
+    .button-group .selected {
+      background: white;
+      color: red;
+    }
 
-.time-grid button {
-  background: #400000;
-  border: none;
-  color: white;
-  border-radius: 20px;
-  padding: 0.6em 0.8em;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.2s;
-}
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75em;
+      margin: 1.5em 0;
+    }
 
-.time-grid button:hover {
-  background: red;
-}
+    .time-grid button {
+      background: #400000;
+      border: none;
+      color: white;
+      border-radius: 20px;
+      padding: 0.6em 0.8em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
 
-.note {
-  font-size: 0.8em;
-  color: white;
-  margin-top: 1em;
-}
+    .time-grid button:hover {
+      background: red;
+    }
 
-footer {
-  background: rgba(0, 0, 0, 0.5);
-  text-align: center;
-  font-size: 0.85em;
-  padding: 1em;
-}
+    .time-grid button.available {
+      background: #400000;
+    }
 
-footer p {
-  margin: 0.4em 0;
-}
+    .time-grid button.full {
+      background-color: #ccc;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
 
-footer img {
- width: 16px;
-  vertical-align: middle;
-}
+    .time-grid button.passed {
+      background-color: #333;
+      color: #888;
+      text-decoration: line-through;
+      cursor: not-allowed;
+    }
 
-.time-grid button.full {
-    background-color: #ccc;
-    cursor: not-allowed;
-    opacity: 0.7;
-}
+    .note {
+      font-size: 0.8em;
+      color: white;
+      margin-top: 1em;
+    }
+
+    footer {
+      background: rgba(0, 0, 0, 0.5);
+      text-align: center;
+      font-size: 0.85em;
+      padding: 1em;
+    }
+
+    footer p {
+      margin: 0.4em 0;
+    }
+
+    footer img {
+      width: 16px;
+      vertical-align: middle;
+    }
+
+    .capacity-info {
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      color: white;
+    }
+
+    .debug-info {
+      display: none;
+      background-color: rgba(0,0,0,0.7);
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      font-family: monospace;
+      color: #ccc;
+      font-size: 0.8em;
+    }

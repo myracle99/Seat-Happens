@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -6,33 +6,57 @@
   <title>Reservations</title>
   <link rel="stylesheet" href="adminhomepage.css" />
   <style>
-    .reservations-table {
+    .reservations-table, .overdue-table {
       width: 100%;
-      margin-top: 40px;
+      margin-top: 20px;
       border-collapse: collapse;
       background-color: rgba(0, 0, 0, 0.6);
     }
 
     .reservations-table th,
-    .reservations-table td {
+    .reservations-table td,
+    .overdue-table th,
+    .overdue-table td {
       padding: 12px 15px;
       border: 1px solid white;
       text-align: center;
     }
 
-    .reservations-table th {
-      background-color: rgba(0, 255, 0, 0.3);
+    .reservations-table th,
+    .overdue-table th {
       font-size: 16px;
       font-weight: bold;
     }
 
-    .reservations-table td {
+    .reservations-table td,
+    .overdue-table td {
       font-size: 15px;
+    }
+
+    /* Different background for overdue table header */
+    .overdue-table th {
+      background-color: rgba(255, 0, 0, 0.3); /* Red tint for overdue */
+    }
+
+    /* Different background for regular table header */
+    .reservations-table th {
+      background-color: rgba(0, 255, 0, 0.3); /* Green tint for regular */
     }
 
     .table-container {
       overflow-x: auto;
       margin-top: 30px;
+    }
+
+    .section-title {
+      color: white;
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+
+    .overdue-title {
+      color: #ff6b6b; /* Light red for overdue title */
     }
   </style>
 </head>
@@ -46,9 +70,10 @@
       <h1>RESERVATIONS</h1>
       <p>View and manage all customer reservations below</p>
 
+      <!-- Overdue Reservations Section -->
+      <h2 class="section-title overdue-title">OVERDUE RESERVATIONS</h2>
       <div class="table-container">
-        <table class="reservations-table">
-          <thead>
+        <table class="overdue-table">
           <thead>
             <tr>
               <th>Place</th>
@@ -63,10 +88,32 @@
               <th>Actions</th> 
             </tr>
           </thead>
+          <tbody id="overdueReservationBody">
+            <!-- JavaScript will inject overdue rows here -->
+          </tbody>
+        </table>
+      </div>
 
+      <!-- Regular Reservations Section -->
+      <h2 class="section-title">ACTIVE RESERVATIONS</h2>
+      <div class="table-container">
+        <table class="reservations-table">
+          <thead>
+            <tr>
+              <th>Place</th>
+              <th>Guest Count</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Notes</th>
+              <th>Status</th>
+              <th>Actions</th> 
+            </tr>
           </thead>
           <tbody id="reservationBody">
-            <!-- JavaScript will inject rows here -->
+            <!-- JavaScript will inject active rows here -->
           </tbody>
         </table>
       </div>
@@ -74,6 +121,11 @@
   </div>
 
   <script type="module" src="reservation.js"></script>
-
+  <!-- Add this to your head section -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>
+  // Initialize with your public key
+  emailjs.init('Wa4qxuVs1KGKA0WZ0');
+</script>
 </body>
 </html>
