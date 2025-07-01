@@ -4,21 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Archived Reservations - Ches Café</title>
-  <link rel="stylesheet" href="ranalytics.css"/>
+  <link rel="stylesheet" href="RArchives.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="container">
+    <!-- Header with back icon -->
     <header>
       <div class="back-icon" onclick="window.location.href='RAnalytics.html'">
         <img src="back icon.png" alt="Back" />
       </div>
-      <h1>ARCHIVED RESERVATIONS</h1>
     </header>
 
+    <!-- Centered Page Title -->
+    <h1>ARCHIVED RESERVATIONS</h1>
+
     <main>
-      <div class="top-buttons">
+      <!-- Date Filter -->
+      <div class="calendar-section">
+        <input type="date" id="archiveDate">
       </div>
 
+      <!-- Table Section -->
       <div class="report-table">
         <table id="archivedTable">
           <thead>
@@ -30,6 +37,7 @@
               <th>Area</th>
               <th>Time Reserved</th>
               <th>Status</th>
+              <th>Archived At</th>
             </tr>
           </thead>
           <tbody id="archivedBody"></tbody>
@@ -42,64 +50,101 @@
   <div class="overlay" id="overlay" onclick="closePopup()"></div>
   <div class="popup" id="popup">
     <p id="popupInfo"></p>
-    <button onclick="restoreReservation()">Restore</button>
+    <div id="popupDetails"></div>
+    <button id="restoreButton" onclick="restoreReservation()">Restore</button>
     <button onclick="closePopup()">Close</button>
   </div>
 
+  <!-- JavaScript -->
   <script>
-    const archivedReservations = [
-      {
-        name: 'Daniella Cruz',
-        email: 'daniella@example.com',
-        phone: '09123400000',
-        guests: 3,
-        area: 'Outdoor',
-        time: '6:00 PM',
-        status: 'No Show'
-      },
-      {
-        name: 'Leo Gutierrez',
-        email: 'leo@example.com',
-        phone: '09125551234',
-        guests: 5,
-        area: 'Indoor',
-        time: '7:45 PM',
-        status: 'Cancelled'
-      }
-    ];
+    // Initialize Supabase client
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Supabase configuration
+      const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w';
+      
+      // Create and store the Supabase client
+      window.supabase = supabase.createClient(supabaseUrl, supabaseKey);
+      
+      // Set default date to today
+      document.getElementById('archiveDate').valueAsDate = new Date();
+      
+      // Add event listener for date change
+      document.getElementById('archiveDate').addEventListener('change', loadArchived);
+      
+      // Initial load
+      loadArchived();
+    });
 
-    let selectedRowIndex = null;
+    let selectedArchive = null;
 
-    function loadArchived() {
-      const tbody = document.getElementById('archivedBody');
-      tbody.innerHTML = '';
+    // Load archived reservations from Supabase
+    async function loadArchived() {
+  const tbody = document.getElementById('archivedBody');
+  tbody.innerHTML = '<tr><td colspan="8"><div class="loading">Loading...</div></td></tr>';
+      const date = document.getElementById('archiveDate').value;
+      
+      try {
+        let query = window.supabase
+          .from('archived_reservations')
+          .select('*')
+          .order('archived_at', { ascending: false });
 
-      if (archivedReservations.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7">No archived reservations found.</td></tr>';
-        return;
-      }
+        if (date) {
+          query = query.eq('reservation_date', date);
+        }
 
-      archivedReservations.forEach((res, index) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${res.name}</td>
-          <td>${res.email}</td>
-          <td>${res.phone}</td>
-          <td>${res.guests}</td>
-          <td>${res.area}</td>
-          <td>${res.time}</td>
-          <td>${res.status}</td>
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        const tbody = document.getElementById('archivedBody');
+        tbody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8">No archived reservations found for selected date.</td></tr>';
+          return;
+        }
+
+        data.forEach((reservation) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${reservation.name || 'N/A'}</td>
+            <td>${reservation.email || 'N/A'}</td>
+            <td>${reservation.phone || 'N/A'}</td>
+            <td>${reservation.guest_count || '0'}</td>
+            <td>${reservation.place || 'N/A'}</td>
+            <td>${reservation.reservation_time || 'N/A'}</td>
+            <td>${reservation.status || 'N/A'}</td>
+            <td>${new Date(reservation.archived_at).toLocaleString()}</td>
+          `;
+          tr.classList.add('highlight-row');
+          tr.onclick = () => openPopup(reservation);
+          tbody.appendChild(tr);
+        });
+
+      } catch (error) {
+        console.error('Error loading archived reservations:', error);
+        document.getElementById('archivedBody').innerHTML = `
+          <tr><td colspan="8">Error loading archived reservations. Please try again.</td></tr>
         `;
-        tr.classList.add('highlight-row');
-        tr.onclick = () => openPopup(index);
-        tbody.appendChild(tr);
-      });
+      }
     }
 
-    function openPopup(index) {
-      selectedRowIndex = index;
-      const res = archivedReservations[index];
-      document.getElementById('popupInfo').textContent = `Reservation: ${res.name}, ${res.area} at ${res.time}`;
+    function openPopup(reservation) {
+      selectedArchive = reservation;
+      document.getElementById('popupInfo').textContent = `Reservation: ${reservation.name}`;
+      
+      document.getElementById('popupDetails').innerHTML = `
+        <p><strong>Email:</strong> ${reservation.email || 'N/A'}</p>
+        <p><strong>Phone:</strong> ${reservation.phone || 'N/A'}</p>
+        <p><strong>Guests:</strong> ${reservation.guest_count || '0'}</p>
+        <p><strong>Area:</strong> ${reservation.place || 'N/A'}</p>
+        <p><strong>Time:</strong> ${reservation.reservation_time || 'N/A'}</p>
+        <p><strong>Status:</strong> ${reservation.status || 'N/A'}</p>
+        <p><strong>Archived:</strong> ${new Date(reservation.archived_at).toLocaleString()}</p>
+      `;
+      
       document.getElementById('popup').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
@@ -109,16 +154,58 @@
       document.getElementById('overlay').style.display = 'none';
     }
 
-    function restoreReservation() {
-      if (selectedRowIndex !== null) {
-        const restored = archivedReservations.splice(selectedRowIndex, 1)[0];
-        alert(`Restored reservation for ${restored.name}`);
-        loadArchived();
-        closePopup();
-      }
-    }
+    async function restoreReservation() {
+  if (!selectedArchive) return;
 
-    window.onload = loadArchived;
+  // Confirmation dialog
+  if (!confirm(`Restore ${selectedArchive.name}'s reservation?`)) {
+    return;
+  }
+
+  try {
+    // Disable button to prevent duplicate clicks
+    document.getElementById('restoreButton').disabled = true;
+    document.getElementById('restoreButton').textContent = 'Restoring...';
+
+    // STEP 1: Insert into completed_reservations
+    const { error: insertError } = await supabase
+      .from('completed_reservations')
+      .insert({
+        name: selectedArchive.name,
+        email: selectedArchive.email,
+        phone: selectedArchive.phone,
+        guest_count: selectedArchive.guest_count,
+        place: selectedArchive.place,
+        reservation_time: selectedArchive.reservation_time,
+        reservation_date: selectedArchive.reservation_date,
+        status: selectedArchive.status,
+        created_at: selectedArchive.created_at || new Date().toISOString(),
+      });
+
+    if (insertError) throw insertError;
+
+    // STEP 2: Delete from archived_reservations
+    const { error: deleteError } = await supabase
+      .from('archived_reservations')
+      .delete()
+      .eq('id', selectedArchive.id);
+
+    if (deleteError) throw deleteError;
+
+    // Success! Refresh the table
+    await loadArchived();
+    closePopup();
+    alert("✅ Reservation restored successfully!");
+
+  } catch (error) {
+    console.error("Restore failed:", error);
+    alert(`❌ Failed to restore: ${error.message}`);
+  } finally {
+    // Reset button state
+    document.getElementById('restoreButton').disabled = false;
+    document.getElementById('restoreButton').textContent = 'Restore';
+  }
+}
   </script>
 </body>
 </html>

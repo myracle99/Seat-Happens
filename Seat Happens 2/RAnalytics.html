@@ -7,19 +7,51 @@
   <link rel="stylesheet" href="ranalytics.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    .chart-container {
+      width: 100%;
+      min-height: 300px;
+      margin-bottom: 20px;
+    }
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+    .filter-controls {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .filter-group label {
+      color: white;
+      font-weight: bold;
+    }
+    .filter-group select {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+  </style>
 </head>
 <body>
 
   <div class="overlay" id="overlay" onclick="closePopup()"></div>
-<div class="popup" id="popup">
-  <p id="popupInfo"></p>
-  <button onclick="deleteEntry()">Delete</button>
-  <button onclick="closePopup()">Close</button>
-</div>
-
+  <div class="popup" id="popup">
+    <p id="popupInfo"></p>
+    <div id="popupDetails"></div>
+    <div id="popupTimestamps"></div>
+    <button id="archiveButton">Archive</button>
+    <button id="restoreButton">Restore</button>
+    <button id="closeButton">Close</button>
+  </div>
 
   <div class="container">
     <header>
@@ -33,21 +65,40 @@
       <input type="date" id="reservationDate">
     </div>
 
-    <section class="metrics-section">
-  <div class="metric-box">
-    <h3>Total Reservations</h3>
-    <p>98</p>
-  </div>
-  <div class="metric-box">
-    <h3>Completion Rate</h3>
-    <p>82%</p>
-  </div>
-  <div class="metric-box">
-    <h3>Popular Choice</h3>
-    <p>Outdoor</p>
-  </div>
-</section>
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label for="placeFilter">Filter by Place:</label>
+        <select id="placeFilter" onchange="applyFilters()">
+          <option value="both">Both Areas</option>
+          <option value="indoor">Indoor Only</option>
+          <option value="outdoor">Outdoor Only</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="statusFilter">Filter by Status:</label>
+        <select id="statusFilter" onchange="applyFilters()">
+          <option value="both">All Status</option>
+          <option value="completed">Completed Only</option>
+          <option value="cancelled">Cancelled Only</option>
+        </select>
+      </div>
+    </div>
 
+    <section class="metrics-section">
+      <div class="metric-box">
+        <h3>Total Reservations</h3>
+        <p id="totalReservations">0</p>
+      </div>
+      <div class="metric-box">
+        <h3>Completion Rate</h3>
+        <p id="completionRate">0%</p>
+      </div>
+      <div class="metric-box">
+        <h3>Popular Choice</h3>
+        <p id="popularChoice">-</p>
+      </div>
+    </section>
 
     <!-- Top Charts - Status and Area Preferences -->
     <div class="analytics-top-center">
@@ -81,10 +132,10 @@
       <div class="search-export-bar">
         <input type="text" id="searchInput" placeholder="Search by name or ID" onkeyup="filterTable()">
         <div class="export-buttons">
-          <button onclick="exportTableToCSV('reservations_report.csv')">Export CSV</button>
+          <button onclick="exportToCSV()">Export CSV</button>
           <button onclick="exportToPDF()">Export PDF</button>
           <button onclick="exportToExcel()">Export Excel</button>          
-          <button onclick="window.location.href='RArchives.html'">View Archives</button>
+          <button onclick="viewArchives()">View Archives</button>
         </div>
       </div>
 
@@ -103,19 +154,7 @@
           </thead>
           <tbody id="reservationBody">
             <tr>
-            <td>Jana Dela Cruz</td><td>jana@example.com</td><td>09123456789</td><td>4</td><td>Outdoor</td><td>6:30 PM</td><td>Completed</td>
-            </tr>
-            <tr>
-              <td>Mark Reyes</td><td>mark@example.com</td><td>09876543210</td><td>2</td><td>Indoor</td><td>7:00 PM</td><td>No Show</td>
-            </tr>
-            <tr>
-             <td>Sarah Johnson</td><td>sarah@example.com</td><td>09234567891</td><td>6</td><td>Outdoor</td><td>7:30 PM</td><td>Completed</td>
-            </tr>
-            <tr>
-              <td>Miguel Santos</td><td>miguel@example.com</td><td>09345678912</td><td>3</td><td>Indoor</td><td>8:00 PM</td><td>Cancelled</td>
-            </tr>
-            <tr>
-              <td>Anna Lopez</td><td>anna@example.com</td><td>09456789123</td><td>2</td><td>Outdoor</td><td>8:30 PM</td><td>Completed</td>
+              <td colspan="7" class="no-data">Select a date and click Load Report</td>
             </tr>
           </tbody>
         </table>
@@ -124,63 +163,197 @@
   </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    initializeCharts();
+  // Supabase configuration
+  const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w';
+  let supabaseClient = null;
+  let selectedRowData = null;
+  let currentView = 'done';
+  let reservationData = [];
+  let filteredData = [];
+
+  // Initialize the page
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      // Set default date
+      document.getElementById('reservationDate').valueAsDate = new Date();
+      
+      // Initialize Supabase
+      await initSupabase();
+      
+      // Set up button handlers
+      document.getElementById('reservationDate').addEventListener('change', () => {
+        loadDataAndAnalytics();
+      });
+
+      // Add popup button handlers
+      document.getElementById('closeButton').addEventListener('click', closePopup);
+      document.getElementById('archiveButton').addEventListener('click', archiveEntry);
+      document.getElementById('restoreButton').addEventListener('click', restoreEntry);
+
+      // Load initial data
+      loadDataAndAnalytics();
+      
+    } catch (error) {
+      console.error("Page initialization failed:", error);
+    }
   });
 
-  function initializeCharts() {
-    // Chart 1: Reservation Status Breakdown (Removed "Cancelled")
-    new Chart(document.getElementById('reservationChart'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Completed', 'No Show'],
-        datasets: [{
-          data: [60, 18], // Removed cancelled (20)
-          backgroundColor: ['#00cc66', '#cc0000'] // Only 2 colors now
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: 'white', padding: 20 }
-          }
-        }
+  // Initialize Supabase client
+  async function initSupabase() {
+    try {
+      if (!window.supabase) {
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+        window.supabase = createClient(supabaseUrl, supabaseKey);
+        supabaseClient = window.supabase;
+        console.log("Supabase initialized successfully");
       }
+      return window.supabase;
+    } catch (error) {
+      console.error("Supabase initialization failed: " + error.message);
+      throw error;
+    }
+  }
+
+  // Load data and update analytics
+  async function loadDataAndAnalytics() {
+    const date = document.getElementById('reservationDate').value;
+    if (!date) {
+      alert("Please select a date");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from('completed_reservations')
+        .select('*')
+        .eq('reservation_date', date)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      reservationData = data || [];
+      applyFilters(); // This will update the filtered data and refresh the display
+      
+    } catch (error) {
+      console.error("Error loading data:", error);
+      document.getElementById('reservationBody').innerHTML = `
+        <tr><td colspan="7" class="no-data">Error loading data</td></tr>
+      `;
+      // Update with empty data
+      updateMetrics([]);
+      updateCharts([]);
+    }
+  }
+
+  function applyFilters() {
+    const placeFilter = document.getElementById('placeFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    filteredData = reservationData.filter(item => {
+        const placeMatch = 
+            placeFilter === 'both' || 
+            (placeFilter === 'indoor' && item.place?.toLowerCase().includes('indoor')) ||
+            (placeFilter === 'outdoor' && item.place?.toLowerCase().includes('outdoor'));
+
+        const statusMatch = 
+            statusFilter === 'both' || 
+            (statusFilter === 'completed' && item.status?.toLowerCase().includes('completed')) ||
+            (statusFilter === 'cancelled' && item.status?.toLowerCase().includes('cancelled')); // Changed from "no show"
+
+        return placeMatch && statusMatch;
     });
 
-    // Chart 2: Reservation Area Preferences (Removed "VIP Room")
-    new Chart(document.getElementById('areaChart'), {
-      type: 'pie',
-      data: {
-        labels: ['Outdoor', 'Indoor'],
-        datasets: [{
-          data: [40, 35], // Removed VIP Room (25)
-          backgroundColor: ['#ff9999', '#66b3ff'] // Only 2 colors now
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: 'white', padding: 20 }
-          }
-        }
-      }
+    updateMetrics(filteredData);
+    displayReservationTable(filteredData);
+    updateCharts(filteredData);
+}
+
+  // Update charts with new data
+  function updateCharts(data) {
+    // Default values for empty data
+    if (!data || data.length === 0) {
+      data = [];
+    }
+
+    // Chart 1: Reservation Status Breakdown
+    const statusCounts = {
+        'Completed': data.filter(r => r.status?.toLowerCase().includes('completed')).length,
+        'Cancelled': data.filter(r => r.status?.toLowerCase().includes('cancelled')).length
+    };
+
+    // Chart 2: Reservation Area Preferences
+    const areaCounts = {};
+    data.forEach(r => {
+      const area = r.place || 'Unknown';
+      areaCounts[area] = (areaCounts[area] || 0) + 1;
     });
 
-    // Chart 3: Guests per Hour (unchanged)
-    new Chart(document.getElementById('guestsPerHourChart'), {
+    // Chart 3: Guests per Hour
+    const hourlyGuests = {};
+    data.forEach(r => {
+      const time = r.reservation_time || '00:00';
+      const hour = time.split(':')[0] + ':00';
+      hourlyGuests[hour] = (hourlyGuests[hour] || 0) + (r.guest_count || 1);
+    });
+
+    // Initialize or update charts
+    initializeChart('reservationChart', 'doughnut', 
+        Object.keys(statusCounts), 
+        Object.values(statusCounts), 
+        ['#00cc66', '#ffcc00'] // Changed colors to match new statuses
+    );
+
+    initializeChart('areaChart', 'pie',
+      Object.keys(areaCounts),
+      Object.values(areaCounts),
+      ['#ff9999', '#66b3ff', '#99ff99']
+    );
+
+    initializeLineChart('guestsPerHourChart',
+      Object.keys(hourlyGuests).sort(),
+      Object.keys(hourlyGuests).sort().map(h => hourlyGuests[h])
+    );
+  }
+
+  // Helper function to initialize/update standard charts
+  function initializeChart(chartId, chartType, labels, data, colors) {
+    const ctx = document.getElementById(chartId).getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window[chartId] && window[chartId].destroy) {
+      window[chartId].destroy();
+    }
+
+    window[chartId] = new Chart(ctx, {
+      type: chartType,
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors
+        }]
+      },
+      options: getChartOptions()
+    });
+  }
+
+  // Helper function for line chart
+  function initializeLineChart(chartId, labels, data) {
+    const ctx = document.getElementById(chartId).getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window[chartId] && window[chartId].destroy) {
+      window[chartId].destroy();
+    }
+
+    window[chartId] = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM'],
+        labels: labels,
         datasets: [{
           label: 'Total Guests',
-          data: [25, 45, 85, 72, 38, 15],
+          data: data,
           borderColor: '#ff9999',
           backgroundColor: 'rgba(255, 153, 153, 0.1)',
           fill: true,
@@ -191,125 +364,191 @@
           pointRadius: 6
         }]
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            labels: { color: 'white' }
-          }
-        },
-        scales: {
-          x: {
-            ticks: { color: 'white' },
-            grid: { color: 'rgba(255,255,255,0.1)' }
-          },
-          y: {
-            beginAtZero: true,
-            ticks: { color: 'white' },
-            grid: { color: 'rgba(255,255,255,0.1)' }
+      options: getLineChartOptions()
+    });
+  }
+
+  function getChartOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { 
+            color: 'white', 
+            padding: 20,
+            font: {
+              size: 14
+            }
           }
         }
+      }
+    };
+  }
+
+  function getLineChartOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { 
+            color: 'white',
+            font: {
+              size: 14
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { 
+            color: 'white',
+            font: {
+              size: 12
+            }
+          },
+          grid: { 
+            color: 'rgba(255,255,255,0.1)',
+            drawBorder: false
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { 
+            color: 'white',
+            font: {
+              size: 12
+            }
+          },
+          grid: { 
+            color: 'rgba(255,255,255,0.1)',
+            drawBorder: false
+          }
+        }
+      }
+    };
+  }
+
+  // Update metrics display
+  function updateMetrics(data) {
+    const totalReservations = data.length;
+    const completedCount = data.filter(r => r.status?.toLowerCase().includes('completed')).length;
+    const completionRate = totalReservations > 0 ? Math.round((completedCount / totalReservations) * 100) : 0;
+    
+    // Calculate popular area
+    const areaCounts = {};
+    data.forEach(r => {
+      const area = r.place || 'Unknown';
+      areaCounts[area] = (areaCounts[area] || 0) + 1;
+    });
+    const popularChoice = Object.keys(areaCounts).length > 0 
+      ? Object.keys(areaCounts).reduce((a, b) => areaCounts[a] > areaCounts[b] ? a : b)
+      : 'None';
+
+    // Update UI
+    document.getElementById('totalReservations').textContent = totalReservations;
+    document.getElementById('completionRate').textContent = `${completionRate}%`;
+    document.getElementById('popularChoice').textContent = popularChoice.toUpperCase();
+  }
+
+  // Display reservation table
+  function displayReservationTable(data) {
+    const tbody = document.getElementById('reservationBody');
+    tbody.innerHTML = '';
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="no-data">
+            No reservations found for selected date
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    data.forEach(item => {
+      const row = document.createElement('tr');
+      row.className = 'highlight-row';
+      row.innerHTML = `
+        <td>${item.name || 'N/A'}</td>
+        <td>${item.email || 'N/A'}</td>
+        <td>${item.phone || 'N/A'}</td>
+        <td>${item.guest_count || '0'}</td>
+        <td>${item.place || 'N/A'}</td>
+        <td>${item.reservation_time || 'N/A'}</td>
+        <td>${item.status || 'Pending'}</td>
+      `;
+      row.addEventListener('click', () => openPopup(item));
+      tbody.appendChild(row);
+    });
+  }
+
+  // Table filtering function
+  function filterTable() {
+    const input = document.getElementById("searchInput").value.toUpperCase();
+    const rows = document.querySelectorAll("#reservationTable tbody tr");
+    
+    rows.forEach(row => {
+      if (row.cells.length < 2) return; // Skip no-data rows
+      
+      const name = row.cells[0].innerText.toUpperCase();
+      const email = row.cells[1].innerText.toUpperCase();
+      
+      if (name.includes(input) || email.includes(input)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
       }
     });
   }
 
-    // Table filtering function
-    function filterTable() {
-      const input = document.getElementById("searchInput").value.toUpperCase();
-      const rows = document.querySelectorAll("#reservationTable tbody tr");
-      
-      rows.forEach(row => {
-        const id = row.cells[0].innerText.toUpperCase();
-        const name = row.cells[1].innerText.toUpperCase();
-        const email = row.cells[2].innerText.toUpperCase();
-        
-        if (id.includes(input) || name.includes(input) || email.includes(input)) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    // Export to CSV function
-    function exportTableToCSV(filename) {
-      const table = document.getElementById("reservationTable");
-      const rows = table.querySelectorAll("tr");
-      const csv = [];
-      
-      rows.forEach(row => {
-        const cols = row.querySelectorAll("td, th");
-        const csvRow = [];
-        cols.forEach(col => {
-          csvRow.push('"' + col.innerText.replace(/"/g, '""') + '"');
-        });
-        csv.push(csvRow.join(","));
-      });
-      
-      const csvContent = csv.join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      
-      if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    }
-
-    function exportToExcel() {
-  const table = document.getElementById("reservationTable");
-  const rows = table.querySelectorAll("tr");
-  const data = [];
-  
-  // Get headers
-  const headers = [];
-  table.querySelectorAll('thead th').forEach(th => {
-    headers.push(th.textContent.trim());
-  });
-  data.push(headers);
-  
-  // Get rows (skip hidden rows from search filtering)
-  table.querySelectorAll('tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
+  // Export functions
+  function exportToCSV() {
+    const table = document.getElementById("reservationTable");
+    const rows = table.querySelectorAll("tr");
+    let csvContent = "";
     
-    const row = [];
-    tr.querySelectorAll('td').forEach(td => {
-      row.push(td.textContent.trim());
+    rows.forEach(row => {
+      if (row.style.display === 'none') return;
+      
+      const rowData = [];
+      const cols = row.querySelectorAll("th, td");
+      
+      cols.forEach(col => {
+        rowData.push(`"${col.textContent.trim().replace(/"/g, '""')}"`);
+      });
+      
+      csvContent += rowData.join(",") + "\r\n";
     });
-    data.push(row);
-  });
-  
-  // Create workbook
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, "Reservations");
-  
-  // Get current date for filename
-  const date = document.getElementById('reservationDate').value || new Date().toLocaleDateString();
-  const filename = `reservations_report_${date.replace(/\//g, '-')}.xlsx`;
-  
-  // Export the workbook
-  XLSX.writeFile(wb, filename);
-}
+    
+    const date = document.getElementById('reservationDate').value || new Date().toISOString().split('T')[0];
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `reservations_report_${date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
-    // Export to PDF
-    async function exportToPDF() {
+  function exportToExcel() {
+    const table = document.getElementById("reservationTable");
+    const workbook = XLSX.utils.table_to_book(table);
+    const date = document.getElementById('reservationDate').value || new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `reservations_report_${date}.xlsx`);
+  }
+
+  async function exportToPDF() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'a4');
-    
-    // Get the selected date or use current date
     const date = document.getElementById('reservationDate').value || new Date().toLocaleDateString();
     const title = `Reservation Analytics Report - ${date}`;
     
-    // Set title styling
+    // Title
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(20);
     pdf.setTextColor(255, 255, 255);
@@ -317,19 +556,17 @@
     pdf.rect(0, 0, pdf.internal.pageSize.getWidth(), 50, 'F');
     pdf.text(title, 40, 35);
     
-    // Add metrics section
+    // Metrics
     pdf.setFontSize(14);
     pdf.setTextColor(0, 0, 0);
     pdf.text('Key Metrics', 40, 80);
     
-    // Get metric values
     const metrics = [
-      { label: 'Total Reservations', value: '98' },
-      { label: 'Completion Rate', value: '82%' },
-      { label: 'Popular Choice', value: 'Outdoor' }
+      { label: 'Total Reservations', value: document.getElementById('totalReservations').textContent },
+      { label: 'Completion Rate', value: document.getElementById('completionRate').textContent },
+      { label: 'Popular Choice', value: document.getElementById('popularChoice').textContent }
     ];
     
-    // Add metrics boxes
     let yPosition = 100;
     metrics.forEach((metric, index) => {
       pdf.setFillColor(240, 240, 240);
@@ -344,60 +581,55 @@
     
     yPosition += 70;
     
-    // Add chart sections
+    // Charts
     pdf.setFontSize(14);
     pdf.text('Analytics Charts', 40, yPosition);
     yPosition += 30;
     
-    // Capture charts as images
     try {
-      // First row of charts (status and area)
+      // Capture charts as images
       const chart1 = await html2canvas(document.getElementById('reservationChart'));
       const chart2 = await html2canvas(document.getElementById('areaChart'));
+      const chart3 = await html2canvas(document.getElementById('guestsPerHourChart'));
       
-      // Add first chart (Reservation Status Breakdown)
+      // Add charts to PDF
       pdf.addImage(chart1.toDataURL('image/png'), 'PNG', 40, yPosition, 250, 150);
       pdf.text('Reservation Status Breakdown', 50, yPosition + 170);
       
-      // Add second chart (Reservation Area Preferences)
       pdf.addImage(chart2.toDataURL('image/png'), 'PNG', 310, yPosition, 250, 150);
       pdf.text('Reservation Area Preferences', 320, yPosition + 170);
       
       yPosition += 200;
       
-      // Second row (guests per hour)
-      const chart3 = await html2canvas(document.getElementById('guestsPerHourChart'));
       pdf.addImage(chart3.toDataURL('image/png'), 'PNG', 40, yPosition, 520, 200);
       pdf.text('Guests per Hour', 50, yPosition + 210);
       
       yPosition += 250;
     } catch (error) {
       console.error('Error capturing charts:', error);
-      // Fallback to placeholders if chart capture fails
       pdf.setFontSize(12);
       pdf.setTextColor(100, 100, 100);
       pdf.text('Charts could not be rendered', 40, yPosition);
       yPosition += 30;
     }
     
-    // Add table title
+    // Table
     pdf.setFontSize(14);
-    pdf.setTextColor(0, 0, 0);
     pdf.text('Reservation Details', 40, yPosition);
     yPosition += 30;
     
-    // Get table data
-    const table = document.getElementById('reservationTable');
     const headers = [];
     const rows = [];
     
     // Get headers
-    table.querySelectorAll('thead th').forEach(th => {
+    document.querySelectorAll('#reservationTable thead th').forEach(th => {
       headers.push(th.textContent.trim());
     });
     
-    // Get rows
-    table.querySelectorAll('tbody tr').forEach(tr => {
+    // Get rows (skip hidden rows from search)
+    document.querySelectorAll('#reservationTable tbody tr').forEach(tr => {
+      if (tr.style.display === 'none') return;
+      
       const row = [];
       tr.querySelectorAll('td').forEach(td => {
         row.push(td.textContent.trim());
@@ -432,15 +664,35 @@
     pdf.save(`reservation_analytics_${date.replace(/\//g, '-')}.pdf`);
   }
 
-    // Set default date to today
-    document.getElementById('reservationDate').valueAsDate = new Date();
-  
-  let selectedReservation = null;
+  // Popup functions
+  function openPopup(item) {
+    selectedRowData = item;
+    
+    document.getElementById('popupInfo').textContent = `Reservation for: ${item.name}`;
+    document.getElementById('popupDetails').innerHTML = `
+      <strong>Email:</strong> ${item.email || 'N/A'}<br>
+      <strong>Phone:</strong> ${item.phone || 'N/A'}<br>
+      <strong>Guests:</strong> ${item.guest_count || '0'}<br>
+      <strong>Place:</strong> ${item.place || 'N/A'}<br>
+      <strong>Status:</strong> ${item.status || 'Pending'}
+    `;
 
-  function openPopup(row) {
-    selectedReservation = row;
-    const info = `Reservation ID: ${row.cells[0].innerText} - ${row.cells[1].innerText}`;
-    document.getElementById('popupInfo').textContent = info;
+    let timestampInfo = `
+      <strong>Time:</strong> ${item.reservation_time || 'N/A'}<br>
+      <strong>Created:</strong> ${new Date(item.created_at).toLocaleString()}
+    `;
+
+    if (item.archived_at) {
+      timestampInfo += `<br><strong>Archived:</strong> ${new Date(item.archived_at).toLocaleString()}`;
+    }
+
+
+    document.getElementById('popupTimestamps').innerHTML = `<small>${timestampInfo}</small>`;
+
+    // Show/hide buttons based on current view
+    document.getElementById('archiveButton').style.display = currentView === 'done' ? 'inline-block' : 'none';
+    document.getElementById('restoreButton').style.display = currentView === 'done' ? 'none' : 'inline-block';
+
     document.getElementById('popup').style.display = 'block';
     document.getElementById('overlay').style.display = 'block';
   }
@@ -448,22 +700,121 @@
   function closePopup() {
     document.getElementById('popup').style.display = 'none';
     document.getElementById('overlay').style.display = 'none';
+    selectedRowData = null;
   }
 
-  function deleteEntry() {
-    if (selectedReservation) {
-      selectedReservation.remove();
-      alert('Reservation deleted.');
-    }
+  async function archiveEntry() {
+  if (!selectedRowData) return;
+  
+  if (!confirm(`Archive ${selectedRowData.name}'s reservation?`)) {
+    return;
+  }
+
+  try {
+    // Disable button during operation
+    document.getElementById('archiveButton').disabled = true;
+    document.getElementById('archiveButton').textContent = 'Archiving...';
+
+    // 1. Prepare the data for archiving (copy all fields)
+    const archiveData = {
+      name: selectedRowData.name,
+      email: selectedRowData.email,
+      phone: selectedRowData.phone,
+      guest_count: selectedRowData.guest_count,
+      place: selectedRowData.place,
+      reservation_time: selectedRowData.reservation_time,
+      reservation_date: selectedRowData.reservation_date,
+      status: selectedRowData.status || 'completed', // Ensure status exists
+      created_at: selectedRowData.created_at || new Date().toISOString(),
+      archived_at: new Date().toISOString() // Add archive timestamp
+    };
+
+    // 2. Insert into archived_reservations
+    const { error: insertError } = await supabaseClient
+      .from('archived_reservations')
+      .insert(archiveData);
+
+    if (insertError) throw insertError;
+
+    // 3. Delete from completed_reservations
+    const { error: deleteError } = await supabaseClient
+      .from('completed_reservations')
+      .delete()
+      .eq('id', selectedRowData.id);
+
+    if (deleteError) throw deleteError;
+
+    // Success - refresh and notify
+    alert(`✅ Reservation archived successfully!`);
     closePopup();
+    await loadDataAndAnalytics(); // Refresh the table
+    
+  } catch (error) {
+    console.error('Archive error:', error);
+    alert(`❌ Archive failed: ${error.message}`);
+  } finally {
+    // Reset button state
+    document.getElementById('archiveButton').disabled = false;
+    document.getElementById('archiveButton').textContent = 'Archive';
+  }
+}
+
+  
+  async function restoreEntry() {
+    if (!selectedRowData) return;
+    
+    try {
+      const sourceTable = currentView === 'archived' ? 'archived_reservations' : 'deleted_reservations';
+      
+      // Get complete record
+      const { data: sourceRecord, error: fetchError } = await supabaseClient
+        .from(sourceTable)
+        .select('*')
+        .eq('id', selectedRowData.id)
+        .single();
+
+      if (fetchError || !sourceRecord) throw new Error('Record not found');
+
+      // Prepare restore data
+      const restoreData = {
+        name: sourceRecord.name,
+        email: sourceRecord.email,
+        phone: sourceRecord.phone,
+        guest_count: sourceRecord.guest_count,
+        place: sourceRecord.place,
+        reservation_time: sourceRecord.reservation_time,
+        reservation_date: sourceRecord.reservation_date,
+        created_at: sourceRecord.created_at || new Date().toISOString(),
+        original_id: sourceRecord.original_id || sourceRecord.id
+      };
+
+      // Insert into completed
+      const { error: insertError } = await supabaseClient
+        .from('completed_reservations')
+        .insert(restoreData);
+
+      if (insertError) throw insertError;
+
+      // Delete from source
+      const { error: deleteError } = await supabaseClient
+        .from(sourceTable)
+        .delete()
+        .eq('id', selectedRowData.id);
+
+      if (deleteError) throw deleteError;
+
+      alert('Reservation restored successfully!');
+      closePopup();
+      loadDataAndAnalytics();
+    } catch (error) {
+      console.error('Restore error:', error);
+      alert(`Restore failed: ${error.message}`);
+    }
   }
 
-  // Attach popup to each row
-  document.querySelectorAll("#reservationTable tbody tr").forEach(row => {
-    row.addEventListener('click', () => openPopup(row));
-  });
-  
-  
-  </script>
+  function viewArchives() {
+    window.location.href = 'RArchives.html';
+  }
+</script>
 </body>
 </html>

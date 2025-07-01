@@ -167,102 +167,120 @@
       document.getElementById("current-capacity").textContent = isIndoor ? "50" : "100";
     }
 
-    function convertTo24Hour(time12h) {
-      if (!time12h) return '00:00';
-      
-      const cleaned = time12h.toString()
-        .trim()
-        .toUpperCase()
-        .replace(/([AP]M)/, ' $1');
-      
-      const [timePart, modifier] = cleaned.split(' ');
-      let [hours, minutes] = timePart.split(':');
-      
-      minutes = minutes || '00';
-      
-      if (hours === '12') hours = '00';
-      if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
-      
-      return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
-    }
 
-    async function renderTimeButtons() {
-      logDebug(`Starting renderTimeButtons for ${place}`);
-      timeGrid.innerHTML = "";
-      
+
+async function renderTimeButtons() {
+  logDebug(`Starting renderTimeButtons for ${place}`);
+  timeGrid.innerHTML = "";
+  
+  try {
+    // Get current date and time
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().split('T')[0];
+    
+    // Get selected date from localStorage (format: "Tuesday, July 1, 2025")
+    const selectedDateStr = localStorage.getItem("selectedDate");
+    let isToday = false;
+    let selectedDate = new Date();
+
+    if (selectedDateStr) {
       try {
-        // Get current date and time
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        const isToday = date === today;
-        logDebug(`Current date: ${today}, Selected date: ${date}, Is today: ${isToday}`);
-
-        // Simulate API response for testing
-        const testReservations = {
-          "INDOOR": {
-            "10:00 AM": 0,
-            "2:00 PM":0
-          },
-          "OUTDOOR": {
-            "6:00 PM": 0
-          }
-        };
-
-        // Use test data (replace with actual API call in production)
-        const reservationCounts = testReservations;
-        logDebug(`Using test reservation data:`, reservationCounts);
-
-        const placeCounts = reservationCounts[place] || {};
-        const capacity = CAPACITY[place];
-
-        TIME_SLOTS.forEach(time => {
-          const totalGuests = placeCounts[time] || 0;
-          const remaining = capacity - totalGuests;
-          
-          // Convert time slot to 24-hour format for comparison
-          const time24 = convertTo24Hour(time);
-          const slotDateTime = new Date(`${date}T${time24}`);
-          
-          // Check if time is in the past (only for today)
-          const isPastTime = isToday && slotDateTime < now;
-          const isAvailable = remaining >= guestCount && !isPastTime;
-
-          logDebug(`Time slot ${time}: Total=${totalGuests}, Remaining=${remaining}, Past=${isPastTime}, Available=${isAvailable}`);
-
-          const btn = document.createElement('button');
-          btn.textContent = time;
-          
-          if (isAvailable) {
-            btn.classList.add("available");
-            btn.addEventListener('click', () => selectTime(time));
-            if (remaining < 5) {
-              btn.textContent += ` (${remaining} left)`;
-            }
-          } else {
-            if (isPastTime) {
-              btn.classList.add("passed");
-              btn.textContent += ` (Passed)`;
-            } else {
-              btn.classList.add("full");
-              btn.textContent += ` (Full)`;
-            }
-            btn.disabled = true;
-          }
-
-          timeGrid.appendChild(btn);
-        });
-
-        logDebug(`Time slots rendered successfully`);
-
-      } catch (error) {
-        logDebug(`Error rendering time buttons: ${error}`);
-        timeGrid.innerHTML = `
-          <div style="color: white; grid-column: 1/-1; text-align: center;">
-            Error loading time slots. Please try again later.
-          </div>
-        `;
+        // Parse the full date string from localStorage
+        selectedDate = new Date(selectedDateStr);
+        if (isNaN(selectedDate.getTime())) throw new Error("Invalid date");
+        
+        // Compare dates (without time) to see if selected date is today
+        const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        isToday = selectedDateOnly.getTime() === todayDate.getTime();
+        
+        logDebug(`Selected date: ${selectedDate}, Today: ${todayDate}, Is today: ${isToday}`);
+      } catch (e) {
+        logDebug(`Date parsing error: ${e}`);
+        selectedDate = new Date(); // Fallback to today
       }
     }
+
+    // Simulate API response for testing
+    const testReservations = {
+      "INDOOR": {
+        "10:00 AM": 0,
+        "2:00 PM": 0
+      },
+      "OUTDOOR": {
+        "6:00 PM": 0
+      }
+    };
+
+    const reservationCounts = testReservations;
+    const placeCounts = reservationCounts[place] || {};
+    const capacity = CAPACITY[place];
+
+    TIME_SLOTS.forEach(time => {
+      const totalGuests = placeCounts[time] || 0;
+      const remaining = capacity - totalGuests;
+      
+      // Convert time slot to 24-hour format
+      const time24 = convertTo24Hour(time);
+      const [hours, minutes] = time24.split(':');
+      
+      // Create date object for the time slot
+      const slotDateTime = new Date(selectedDate);
+      slotDateTime.setHours(parseInt(hours), parseInt(minutes));
+      
+      // Check if time is in the past (only if selected date is today)
+      const isPastTime = isToday && slotDateTime < now;
+      const isAvailable = remaining >= guestCount && !isPastTime;
+
+      logDebug(`Time slot ${time}: Slot time=${slotDateTime}, Now=${now}, Past=${isPastTime}, Available=${isAvailable}`);
+
+      const btn = document.createElement('button');
+      btn.textContent = time;
+      
+      if (isAvailable) {
+        btn.classList.add("available");
+        btn.addEventListener('click', () => selectTime(time));
+        if (remaining < 5) {
+          btn.textContent += ` (${remaining} left)`;
+        }
+      } else {
+        if (isPastTime) {
+          btn.classList.add("passed");
+          btn.textContent += ` (Passed)`;
+        } else {
+          btn.classList.add("full");
+          btn.textContent += ` (Full)`;
+        }
+        btn.disabled = true;
+      }
+
+      timeGrid.appendChild(btn);
+    });
+
+  } catch (error) {
+    logDebug(`Error rendering time buttons: ${error}`);
+    timeGrid.innerHTML = `
+      <div style="color: white; grid-column: 1/-1; text-align: center;">
+        Error loading time slots. Please try again later.
+      </div>
+    `;
+  }
+}
+
+// Helper function to convert 12h to 24h time
+function convertTo24Hour(time12h) {
+  if (!time12h) return '00:00';
+  
+  const [time, modifier] = time12h.split(' ');
+  let [hours, minutes] = time.split(':');
+  
+  minutes = minutes || '00';
+  
+  if (hours === '12') hours = '00';
+  if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+  
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+}
   </script>
 </body>
 </html>

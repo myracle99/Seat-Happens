@@ -22,14 +22,6 @@ header {
   cursor: pointer;
 }
 
-h1 {
-  text-align: center;
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin-top: 10px;
-  color: #ffcccc;
-}
-
 /* Buttons */
 .red-button {
   background-color: #a30000;
@@ -57,7 +49,7 @@ h1 {
 }
 
 input[type="date"] {
-  background-color: #222;
+  background-color: #A30000;
   color: white;
   border: 1px solid #555;
   border-radius: 5px;
@@ -214,4 +206,32 @@ tr:hover {
 
 .popup button:hover {
   background-color: #d10000;
+}
+
+.calendar-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    #queueDate {
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      background-color: #a30000;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #queueDate:hover {
+      background-color: #d10000;
+    }
+
+    h1 {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-top: 10px;
+  font-weight: bold;
+  color: #09e438;
 }
