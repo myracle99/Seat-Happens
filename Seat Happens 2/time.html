@@ -63,8 +63,8 @@
   <script type="module">
     // Configuration
     const CAPACITY = {
-      INDOOR: 50,
-      OUTDOOR: 100
+      INDOOR: 25,
+      OUTDOOR: 50
     };
 
     const TIME_SLOTS = [
@@ -164,7 +164,7 @@
       const isIndoor = place === "INDOOR";
       document.getElementById("indoor-btn").classList.toggle("selected", isIndoor);
       document.getElementById("outdoor-btn").classList.toggle("selected", !isIndoor);
-      document.getElementById("current-capacity").textContent = isIndoor ? "50" : "100";
+      document.getElementById("current-capacity").textContent = isIndoor ? "25" : "50";
     }
 
 
