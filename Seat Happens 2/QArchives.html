@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archives</title>
+  <link rel="stylesheet" href="Archives.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="back icon.png" alt="Back" class="icon back-icon" onclick="window.location.href='QAnalytics.html'">
+    </header>
+
+    <main>
+      <h1>ARCHIVED QUEUE</h1>
+      <div class="top-buttons">
+        <button class="red-button" onclick="loadDeleted()">Load Deleted Queue</button>
+      </div>
+      <div class="report-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Queue Number</th>
+              <th>Name of Customer</th>
+              <th>Email</th>
+              <th>Phone Number</th>
+              <th>Number of Guests</th>
+              <th>Place</th>
+              <th>Time Registered</th>
+            </tr>
+          </thead>
+          <tbody id="queueBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+  <div class="popup" id="popup">
+    <p id="popupInfo"></p>
+    <div id="popupTimestamps"></div>
+    <button onclick="restoreEntry()" id="restoreButton">Restore</button>
+    <button onclick="closePopup()">Close</button>
+  </div>
+
+  <script>
+    let selectedRowData = null;
+    const deleted = [
+      {
+        id: 'Q04',
+        name: 'Marco Reyes',
+        email: 'queue4@example.com',
+        phone: '09334445555',
+        guests: 3,
+        place: 'Indoor',
+        time: '12:00 PM',
+        deletedAt: '2024-06-25 11:10 AM'
+      },
+      {
+        id: 'Q05',
+        name: 'Sophia Tan',
+        email: 'queue5@example.com',
+        phone: '09177778888',
+        guests: 2,
+        place: 'Outdoor',
+        time: '01:30 PM',
+        deletedAt: '2024-06-26 01:45 PM'
+      }
+    ];
+
+    function loadDeleted() {
+      const tableBody = document.getElementById('queueBody');
+      tableBody.innerHTML = '';
+
+      if (deleted.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7">No deleted entries found.</td></tr>';
+        return;
+      }
+
+      deleted.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.classList.add('highlight-row');
+        tr.innerHTML = `
+          <td>${row.id}</td>
+          <td>${row.name}</td>
+          <td>${row.email}</td>
+          <td>${row.phone}</td>
+          <td>${row.guests}</td>
+          <td>${row.place}</td>
+          <td>${row.time}</td>
+        `;
+        tr.onclick = () => openPopup(row);
+        tableBody.appendChild(tr);
+      });
+    }
+
+    function openPopup(rowData) {
+      selectedRowData = { ...rowData };
+
+      document.getElementById('popupInfo').textContent = `Queue Entry: ${rowData.id}`;
+      document.getElementById('popupTimestamps').innerHTML = `<small>Deleted At: ${rowData.deletedAt || '—'}</small>`;
+
+      document.getElementById('restoreButton').style.display = 'inline-block';
+      document.getElementById('popup').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    function restoreEntry() {
+      const index = deleted.findIndex(d => d.id === selectedRowData.id);
+      if (index !== -1) {
+        alert(`Restored ${selectedRowData.id}`);
+        deleted.splice(index, 1);
+        loadDeleted();
+      }
+      closePopup();
+    }
+
+    // Load deleted queue on page load
+    window.onload = loadDeleted;
+  </script>
+</body>
+</html>

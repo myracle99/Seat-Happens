@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Archived Reservations - Ches Café</title>
+  <link rel="stylesheet" href="ranalytics.css"/>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="back-icon" onclick="window.location.href='RAnalytics.html'">
+        <img src="back icon.png" alt="Back" />
+      </div>
+      <h1>ARCHIVED RESERVATIONS</h1>
+    </header>
+
+    <main>
+      <div class="top-buttons">
+      </div>
+
+      <div class="report-table">
+        <table id="archivedTable">
+          <thead>
+            <tr>
+              <th>Customer Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Guests</th>
+              <th>Area</th>
+              <th>Time Reserved</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="archivedBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Popup -->
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+  <div class="popup" id="popup">
+    <p id="popupInfo"></p>
+    <button onclick="restoreReservation()">Restore</button>
+    <button onclick="closePopup()">Close</button>
+  </div>
+
+  <script>
+    const archivedReservations = [
+      {
+        name: 'Daniella Cruz',
+        email: 'daniella@example.com',
+        phone: '09123400000',
+        guests: 3,
+        area: 'Outdoor',
+        time: '6:00 PM',
+        status: 'No Show'
+      },
+      {
+        name: 'Leo Gutierrez',
+        email: 'leo@example.com',
+        phone: '09125551234',
+        guests: 5,
+        area: 'Indoor',
+        time: '7:45 PM',
+        status: 'Cancelled'
+      }
+    ];
+
+    let selectedRowIndex = null;
+
+    function loadArchived() {
+      const tbody = document.getElementById('archivedBody');
+      tbody.innerHTML = '';
+
+      if (archivedReservations.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">No archived reservations found.</td></tr>';
+        return;
+      }
+
+      archivedReservations.forEach((res, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${res.name}</td>
+          <td>${res.email}</td>
+          <td>${res.phone}</td>
+          <td>${res.guests}</td>
+          <td>${res.area}</td>
+          <td>${res.time}</td>
+          <td>${res.status}</td>
+        `;
+        tr.classList.add('highlight-row');
+        tr.onclick = () => openPopup(index);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openPopup(index) {
+      selectedRowIndex = index;
+      const res = archivedReservations[index];
+      document.getElementById('popupInfo').textContent = `Reservation: ${res.name}, ${res.area} at ${res.time}`;
+      document.getElementById('popup').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    function restoreReservation() {
+      if (selectedRowIndex !== null) {
+        const restored = archivedReservations.splice(selectedRowIndex, 1)[0];
+        alert(`Restored reservation for ${restored.name}`);
+        loadArchived();
+        closePopup();
+      }
+    }
+
+    window.onload = loadArchived;
+  </script>
+</body>
+</html>

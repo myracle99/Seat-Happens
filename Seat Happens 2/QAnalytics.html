@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Queue Analytics - Ches Café</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <link rel="stylesheet" href="QAnalytics.css">
+</head>
+<body>
+
+  <div id="loader" class="loader-overlay">
+  <div class="spinner"></div>
+</div>
+
+
+
+  <div class="container">
+    <header>
+     <a class="back-icon" href="dailyreportQ.html">
+  <img src="back icon.png" alt="Back" />
+</a>
+      <h1>QUEUE ANALYTICS</h1>
+    </header>
+
+    <div class="calendar-section">
+      <input type="date" id="queueDate">
+    </div>
+
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label for="placeFilter">Filter by Place:</label>
+        <select id="placeFilter" onchange="loadQueueRowsFromRTDB()">
+          <option value="both">Both Areas</option>
+          <option value="indoor">Indoor Only</option>
+          <option value="outdoor">Outdoor Only</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="timeFilter">Filter by Time Period:</label>
+        <select id="timeFilter" onchange="loadQueueRowsFromRTDB()">
+          <option value="all">All Day</option>
+          <option value="morning">Morning (8AM-12PM)</option>
+          <option value="afternoon">Afternoon (12PM-6PM)</option>
+          <option value="evening">Evening (6PM-10PM)</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="statusFilter">Filter by Status:</label>
+        <select id="statusFilter" onchange="loadQueueRowsFromRTDB()">
+          <option value="both">All Status</option>
+          <option value="completed">Completed Only</option>
+          <option value="no show">No Show Only</option>
+        </select>
+      </div>
+    </div>
+
+    <section class="metrics-section">
+      <div class="metric-box">
+        <h3>Total Queue Entries</h3>
+        <p>--</p>
+      </div>
+      <div class="metric-box">
+        <h3>Avg Waiting Time</h3>
+        <p>--</p>
+      </div>
+      <div class="metric-box">
+        <h3>Peak Hour</h3>
+        <p>--</p>
+      </div>
+      <div class="metric-box">
+        <h3>Preferred Area</h3>
+        <p>--</p>
+      </div>
+    </section>
+
+    <div class="analytics-top-center">
+      <div class="chart-section">
+        <h3>Indoor vs Outdoor Preference</h3>
+        <div class="chart-container">
+          <canvas id="placeChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-section">
+        <h3>No Show vs Completed</h3>
+        <div class="chart-container">
+          <canvas id="noShowChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    
+
+    <section class="analytics-grid">
+      <div class="chart-section">
+        <h3>Queue Traffic by Hour</h3>
+        <div class="chart-container">
+          <canvas id="hourlyChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-section">
+        <h3>No. of guests per hour</h3>
+        <div class="chart-container">
+          <canvas id="dayChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-section">
+        <h3>Wait Duration</h3>
+        <div class="chart-container">
+          <canvas id="waitChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="report">
+      <h2>DAILY REPORT - QUEUE</h2>
+      <div class="search-export-bar">
+        <input type="text" id="searchInput" placeholder="Search by name or ID" onkeyup="filterTable()">
+        <div class="export-buttons">
+          <button onclick="exportTableToCSV('queue_report.csv')">Export CSV</button>
+          <button onclick="exportToPDF()">Export PDF</button>
+          <button onclick="exportToExcel()">Export Excel</button>
+            <button onclick="window.location.href='QArchives.html'">View Archives</button>
+        </div>
+      </div>
+      <div class="report-table">
+        <table id="queueTable">
+          <thead>
+            <tr>
+              <th>Queue Number</th>
+              <th>Name of Customer</th>
+              <th>Email</th>
+              <th>Phone Number</th>
+              <th>Number of Guests</th>
+              <th>Place</th>
+              <th>Time Registered</th>
+               <th>Time Served</th>
+                <th>Status</th>
+            </tr>
+          <tbody id="queueBody">
+            
+          </tbody>
+
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
+
+  <script>
+    const firebaseConfig = {
+    apiKey: "AIzaSyDtxDpQKE5mXG90SUuX5DfyLmeL7qXCDQs",
+    authDomain: "chess-queue.firebaseapp.com",
+    databaseURL: "https://chess-queue-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "chess-queue",
+    storageBucket: "chess-queue.appspot.com",
+    messagingSenderId: "882197528383",
+    appId: "1:882197528383:web:9e6cb10970b0875baf5d8a",
+    measurementId: "G-KKQTXQDV9T"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  async function loadQueueRowsFromRTDB() {
+    const dateInput = document.getElementById('queueDate');
+    if (!dateInput || !dateInput.value) return;
+
+    const selectedDate = dateInput.value;
+    const tableBody = document.getElementById('queueBody');
+    tableBody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
+
+    try {
+      const snapshot = await db.ref(`done/${selectedDate}`).once('value');
+      const data = snapshot.val();
+
+      if (!data) {
+        tableBody.innerHTML = '<tr><td colspan="9">No queue data available for this date.</td></tr>';
+        return;
+      }
+
+      const rows = Object.values(data);
+      tableBody.innerHTML = ''; // Clear existing
+
+      rows.forEach(entry => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${entry.queueNumber || '—'}</td>
+          <td>${entry.name || '—'}</td>
+          <td>${entry.email || '—'}</td>
+          <td>${entry.phone || '—'}</td>
+          <td>${entry.guests || '—'}</td>
+          <td>${entry.location ? capitalize(entry.location) : '—'}</td>
+          <td>${formatTime(entry.createdAt)}</td>
+          <td>${formatTime(entry.calledAt)}</td>
+          <td>${entry.status || '—'}</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error(err);
+      tableBody.innerHTML = '<tr><td colspan="9">Error loading data.</td></tr>';
+    }
+  }
+
+  function formatTime(timestamp) {
+    if (!timestamp) return '—';
+    const d = new Date(timestamp);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  // Load rows on page load and when date is changed
+  document.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('queueDate');
+    if (dateInput) {
+      dateInput.addEventListener('change', loadQueueRowsFromRTDB);
+      dateInput.valueAsDate = new Date();
+      loadQueueRowsFromRTDB();
+    }
+  });
+////////////////////////////////////////////////////////////////////////////////////////
+// total entry, avg waiting time, preffered area, id vs od piechart, noshow vs comp pie
+/////////////////////////    AVG WAITING TIME     /////////////////////////////////
+async function loadQueueRowsFromRTDB() {
+  const dateInput = document.getElementById('queueDate');
+  const placeFilter = document.getElementById('placeFilter')?.value || 'both';
+  const statusFilter = document.getElementById('statusFilter')?.value || 'both';
+  const timeFilter = document.getElementById('timeFilter')?.value || 'all';
+  if (!dateInput || !dateInput.value) return;
+
+  const selectedDate = dateInput.value;
+  const tableBody = document.getElementById('queueBody');
+  tableBody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
+
+  try {
+    const snapshot = await db.ref(`done/${selectedDate}`).once('value');
+    const data = snapshot.val();
+
+    if (!data) {
+      tableBody.innerHTML = '<tr><td colspan="9">No queue data available for this date.</td></tr>';
+      document.querySelector('.metric-box:nth-child(1) p').textContent = '0';
+      document.querySelector('.metric-box:nth-child(2) p').textContent = '—';
+      document.querySelector('.metric-box:nth-child(3) p').textContent = '—';
+      document.querySelector('.metric-box:nth-child(4) p').textContent = '—';
+
+      if (placeChart) placeChart.data.datasets[0].data = [0, 0], placeChart.update();
+      if (noShowChart) noShowChart.data.datasets[0].data = [0, 0], noShowChart.update();
+      if (hourlyChart) hourlyChart.data.datasets[0].data = new Array(12).fill(0), hourlyChart.update();
+      if (waitChart) waitChart.data.datasets[0].data = [0, 0, 0], waitChart.update();
+      if (dayChart) {
+        dayChart.data.labels = [
+          '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM',
+          '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM'
+        ];
+        dayChart.data.datasets[0].data = new Array(12).fill(0);
+        dayChart.update();
+      }
+      return;
+    }
+
+    const rows = Object.values(data);
+    let totalMatchingEntries = 0;
+    let indoorCount = 0;
+    let outdoorCount = 0;
+    let completedCount = 0;
+    let noShowCount = 0;
+    let waitTimeTotal = 0;
+    let waitCount = 0;
+    let hourlyCounts = new Array(12).fill(0); // 10 AM to 9 PM
+    let guestCounts = new Array(12).fill(0);  // guest count per hour
+    let waitUnder5 = 0;
+    let wait5to10 = 0;
+    let waitOver10 = 0;
+
+    tableBody.innerHTML = '';
+
+    rows.forEach(entry => {
+      const location = (entry.location || '').toLowerCase();
+      const status = (entry.status || '').toLowerCase();
+
+      // ✅ Filter by place and status
+      if ((placeFilter !== 'both' && location !== placeFilter) ||
+          (statusFilter !== 'both' && status !== statusFilter)) {
+        return;
+      }
+
+      if (!entry.createdAt) return;
+      const createdDate = new Date(entry.createdAt);
+      const hour = createdDate.getHours();
+
+      // ✅ Time filter logic
+      if (timeFilter !== 'all') {
+        const isMorning = hour >= 8 && hour < 12;
+        const isAfternoon = hour >= 12 && hour < 18;
+        const isEvening = hour >= 18 && hour < 21;
+
+        const isValidTime =
+          (timeFilter === 'morning' && isMorning) ||
+          (timeFilter === 'afternoon' && isAfternoon) ||
+          (timeFilter === 'evening' && isEvening);
+
+        if (!isValidTime) return;
+      }
+
+      // ✅ Entry passed all filters
+      totalMatchingEntries++;
+
+      // ✅ Count location
+      if (location === 'indoor') indoorCount++;
+      else if (location === 'outdoor') outdoorCount++;
+
+      // ✅ Count status
+      if (status === 'completed') completedCount++;
+      else if (status === 'no show') noShowCount++;
+
+      // ✅ Wait time
+      if (entry.calledAt && entry.createdAt) {
+        const waitMs = entry.calledAt - entry.createdAt;
+        if (waitMs > 0) {
+          waitTimeTotal += waitMs;
+          waitCount++;
+          const waitMins = waitMs / 60000;
+          if (waitMins < 5) waitUnder5++;
+          else if (waitMins <= 10) wait5to10++;
+          else waitOver10++;
+        }
+      }
+
+      // ✅ Hourly & guest traffic (10 AM–9 PM)
+      if (hour >= 10 && hour <= 21) {
+        const index = hour - 10;
+        hourlyCounts[index]++;
+        const guests = parseInt(entry.guests) || 1;
+        guestCounts[index] += guests;
+      }
+
+      // ✅ Table row
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${entry.queueNumber || '—'}</td>
+        <td>${entry.name || '—'}</td>
+        <td>${entry.email || '—'}</td>
+        <td>${entry.phone || '—'}</td>
+        <td>${entry.guests || '—'}</td>
+        <td>${entry.location ? capitalize(entry.location) : '—'}</td>
+        <td>${formatTime(entry.createdAt)}</td>
+        <td>${formatTime(entry.calledAt)}</td>
+        <td>${entry.status || '—'}</td>
+      `;
+      tr.onclick = () => openPopup(entry);
+tableBody.appendChild(tr);
+
+    });
+
+    // ✅ Peak hour
+    const peakIndex = hourlyCounts.indexOf(Math.max(...hourlyCounts));
+    const hourLabels = [
+      '10 AM - 11 AM', '11 AM - 12 PM', '12 PM - 1 PM', '1 PM - 2 PM',
+      '2 PM - 3 PM', '3 PM - 4 PM', '4 PM - 5 PM', '5 PM - 6 PM',
+      '6 PM - 7 PM', '7 PM - 8 PM', '8 PM - 9 PM', '9 PM - 10 PM'
+    ];
+    const peakHourText = hourlyCounts[peakIndex] > 0 ? hourLabels[peakIndex] : '—';
+    document.querySelector('.metric-box:nth-child(3) p').textContent = peakHourText;
+
+    // ✅ Metric updates
+    document.querySelector('.metric-box:nth-child(1) p').textContent = totalMatchingEntries;
+
+    const avgWaitMins = waitCount > 0 ? Math.round((waitTimeTotal / waitCount) / 60000) : '—';
+    document.querySelector('.metric-box:nth-child(2) p').textContent = `${avgWaitMins} mins`;
+
+    let preferredArea = '—';
+    if (placeFilter === 'both') {
+      if (indoorCount > outdoorCount) preferredArea = 'Indoor';
+      else if (outdoorCount > indoorCount) preferredArea = 'Outdoor';
+      else if (indoorCount === outdoorCount && indoorCount > 0) preferredArea = 'Both';
+    } else {
+      preferredArea = capitalize(placeFilter);
+    }
+    document.querySelector('.metric-box:nth-child(4) p').textContent = preferredArea;
+
+    // ✅ Chart updates
+    if (placeChart) {
+      if (placeFilter === 'both') {
+        placeChart.data.datasets[0].data = [indoorCount, outdoorCount];
+      } else if (placeFilter === 'indoor') {
+        placeChart.data.datasets[0].data = [indoorCount, 0];
+      } else {
+        placeChart.data.datasets[0].data = [0, outdoorCount];
+      }
+      placeChart.update();
+    }
+
+    if (noShowChart) {
+      noShowChart.data.datasets[0].data = [completedCount, noShowCount];
+      noShowChart.update();
+    }
+
+    if (hourlyChart) {
+      hourlyChart.data.datasets[0].data = hourlyCounts;
+      hourlyChart.update();
+    }
+
+    if (waitChart) {
+      waitChart.data.datasets[0].data = [waitUnder5, wait5to10, waitOver10];
+      waitChart.update();
+    }
+
+    if (dayChart) {
+      dayChart.data.labels = [
+        '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM',
+        '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM'
+      ];
+      dayChart.data.datasets[0].label = 'Guests per Hour';
+      dayChart.data.datasets[0].data = guestCounts;
+      dayChart.update();
+    }
+
+  } catch (err) {
+    console.error(err);
+    tableBody.innerHTML = '<tr><td colspan="9">Error loading data.</td></tr>';
+    document.querySelector('.metric-box:nth-child(1) p').textContent = '0';
+    document.querySelector('.metric-box:nth-child(2) p').textContent = '—';
+    document.querySelector('.metric-box:nth-child(3) p').textContent = '—';
+    document.querySelector('.metric-box:nth-child(4) p').textContent = '—';
+
+    if (placeChart) placeChart.data.datasets[0].data = [0, 0], placeChart.update();
+    if (noShowChart) noShowChart.data.datasets[0].data = [0, 0], noShowChart.update();
+    if (hourlyChart) hourlyChart.data.datasets[0].data = new Array(12).fill(0), hourlyChart.update();
+    if (waitChart) waitChart.data.datasets[0].data = [0, 0, 0], waitChart.update();
+    if (dayChart) {
+      dayChart.data.labels = [
+        '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM',
+        '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM'
+      ];
+      dayChart.data.datasets[0].data = new Array(12).fill(0);
+      dayChart.update();
+    }
+  }
+}
+///////////////////////////////////////////////////////////////////////////////////
+
+    // Initialize charts after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeCharts();
+    });
+
+    // Global variables for all charts
+    let hourlyChart, dayChart, waitChart, placeChart, noShowChart;
+
+    // Sample data for different filters
+    const chartData = {
+      hourly: {
+        all: {
+          both: [5, 9, 15, 20, 12, 7],
+          indoor: [3, 6, 10, 14, 8, 4],
+          outdoor: [2, 3, 5, 6, 4, 3]
+        },
+        morning: {
+          both: [5, 9, 15, 8, 0, 0],
+          indoor: [3, 6, 10, 5, 0, 0],
+          outdoor: [2, 3, 5, 3, 0, 0]
+        },
+        afternoon: {
+          both: [0, 0, 15, 20, 12, 7],
+          indoor: [0, 0, 10, 14, 8, 4],
+          outdoor: [0, 0, 5, 6, 4, 3]
+        },
+        evening: {
+          both: [0, 0, 0, 0, 12, 7],
+          indoor: [0, 0, 0, 0, 8, 4],
+          outdoor: [0, 0, 0, 0, 4, 3]
+        }
+      },
+      daily: {
+        all: {
+          both: [12, 14, 18, 20, 25, 22, 10],
+          indoor: [8, 10, 12, 14, 17, 15, 7],
+          outdoor: [4, 4, 6, 6, 8, 7, 3]
+        },
+        completed: {
+          both: [10, 12, 15, 17, 21, 19, 8],
+          indoor: [7, 9, 10, 12, 14, 13, 6],
+          outdoor: [3, 3, 5, 5, 7, 6, 2]
+        },
+        noshow: {
+          both: [2, 2, 3, 3, 4, 3, 2],
+          indoor: [1, 1, 2, 2, 3, 2, 1],
+          outdoor: [1, 1, 1, 1, 1, 1, 1]
+        }
+      },
+      wait: {
+        all: {
+          both: [20, 45, 35],
+          indoor: [15, 35, 20],
+          outdoor: [5, 10, 15]
+        },
+        morning: {
+          both: [15, 25, 20],
+          indoor: [12, 20, 15],
+          outdoor: [3, 5, 5]
+        },
+        afternoon: {
+          both: [25, 50, 40],
+          indoor: [18, 40, 25],
+          outdoor: [7, 10, 15]
+        },
+        evening: {
+          both: [10, 20, 15],
+          indoor: [8, 15, 10],
+          outdoor: [2, 5, 5]
+        }
+      },
+      place: {
+        all: {
+          all: [70, 30],
+          completed: [75, 25],
+          noshow: [60, 40]
+        },
+        morning: {
+          all: [65, 35],
+          completed: [70, 30],
+          noshow: [55, 45]
+        },
+        afternoon: {
+          all: [75, 25],
+          completed: [80, 20],
+          noshow: [65, 35]
+        },
+        evening: {
+          all: [60, 40],
+          completed: [65, 35],
+          noshow: [50, 50]
+        }
+      },
+      noshow: {
+        all: {
+          both: [85, 15],
+          indoor: [88, 12],
+          outdoor: [80, 20]
+        },
+        morning: {
+          both: [90, 10],
+          indoor: [92, 8],
+          outdoor: [85, 15]
+        },
+        afternoon: {
+          both: [82, 18],
+          indoor: [85, 15],
+          outdoor: [78, 22]
+        },
+        evening: {
+          both: [88, 12],
+          indoor: [90, 10],
+          outdoor: [85, 15]
+        }
+      }
+    };
+    ////////////////////////   INITIALIZE CHARTS    //////////////////////////////////
+    function initializeCharts() {
+      // Hourly Chart
+      const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+      hourlyChart = new Chart(hourlyCtx, {
+        type: 'bar',
+        data: {
+          labels: ['10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM' , '5 PM',
+            '6 PM', '7 PM', '8 PM', '9 PM'
+          ],
+          datasets: [{
+            label: 'Queue Entry',
+            data: [5, 9, 15, 20, 12, 7],
+            backgroundColor: '#a30000',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: 'white' }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { color: 'white' },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            },
+            x: {
+              ticks: { color: 'white' },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            }
+          }
+        }
+      });
+
+      // guest per hour
+      const dayCtx = document.getElementById('dayChart').getContext('2d');
+      dayChart = new Chart(dayCtx, {
+        type: 'line',
+        data: {
+          labels: ['10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM' , '5 PM',
+            '6 PM', '7 PM', '8 PM', '9 PM'
+          ],
+          datasets: [{
+            label: 'No. of guests',
+            data: [12, 14, 18, 20, 25, 22, 10],
+            borderColor: '#d10000',
+            backgroundColor: 'rgba(209, 0, 0, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: 'white' }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { color: 'white' },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            },
+            x: {
+              ticks: { color: 'white' },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            }
+          }
+        }
+      });
+
+      // Wait Chart
+      const waitCtx = document.getElementById('waitChart').getContext('2d');
+      waitChart = new Chart(waitCtx, {
+        type: 'bar',
+        data: {
+          labels: ['<5 mins', '5-10 mins', '10+ mins'],
+          datasets: [{
+            label: 'Customer',
+            data: [20, 45, 35],
+            backgroundColor: ['#ff9999', '#a30000', '#660000'],
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: 'white' }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { color: 'white' },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            },
+            x: {
+              ticks: { color: 'white' },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            }
+          }
+        }
+      });
+
+      // Place Chart
+      const placeCtx = document.getElementById('placeChart').getContext('2d');
+      placeChart = new Chart(placeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Indoor', 'Outdoor'],
+          datasets: [{
+            data: [70, 30],
+            backgroundColor: ['#ff9999', '#990000']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: 'white' },
+              position: 'bottom'
+            }
+          }
+        }
+      });
+
+      // No Show Chart
+      const noShowCtx = document.getElementById('noShowChart').getContext('2d');
+      noShowChart = new Chart(noShowCtx, {
+        type: 'pie',
+        data: {
+          labels: ['Completed', 'No Show'],
+          datasets: [{
+            data: [85, 15],
+            backgroundColor: ['#00cc66', '#cc0000']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: 'white' },
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+    /////////////////////////////////////////////////////////////////////////////////////
+
+    // Keep the old function for backward compatibility
+    function updateWaitChart() {
+      updateAllCharts();
+    }
+
+    function filterTable() {
+      const input = document.getElementById("searchInput").value.toUpperCase();
+      const rows = document.querySelectorAll("#queueTable tbody tr");
+      
+      rows.forEach(row => {
+        const id = row.cells[0].innerText.toUpperCase();
+        const name = row.cells[1].innerText.toUpperCase();
+        const email = row.cells[2].innerText.toUpperCase();
+        
+        if (id.includes(input) || name.includes(input) || email.includes(input)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    function exportTableToCSV(filename) {
+      const table = document.getElementById("queueTable");
+      const rows = table.querySelectorAll("tr");
+      const csv = [];
+      
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td, th");
+        const csvRow = [];
+        cols.forEach(col => {
+          csvRow.push('"' + col.innerText.replace(/"/g, '""') + '"');
+        });
+        csv.push(csvRow.join(","));
+      });
+      
+      const csvContent = csv.join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    // Export to Excel (XLSX) function
+function exportToExcel() {
+  const table = document.getElementById("queueTable");
+  const rows = table.querySelectorAll("tr");
+  const data = [];
+  
+  // Get headers
+  const headers = [];
+  table.querySelectorAll('thead th').forEach(th => {
+    headers.push(th.textContent.trim());
+  });
+  data.push(headers);
+  
+  // Get rows (skip hidden rows from search filtering)
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    
+    const row = [];
+    tr.querySelectorAll('td').forEach(td => {
+      row.push(td.textContent.trim());
+    });
+    data.push(row);
+  });
+  
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, "Queue Report");
+  
+  // Get current date for filename
+  const date = document.getElementById('queueDate').value || new Date().toLocaleDateString();
+  const filename = `queue_report_${date.replace(/\//g, '-')}.xlsx`;
+  
+  // Export the workbook
+  XLSX.writeFile(wb, filename);
+}
+
+    async function exportToPDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'pt', 'a4');
+  
+  // Get the selected date or use current date
+  const date = document.getElementById('queueDate').value || new Date().toLocaleDateString();
+  const title = `Queue Report - ${date}`;
+  
+  // Set title styling
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(18);
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFillColor(163, 0, 0);
+  pdf.rect(0, 0, pdf.internal.pageSize.getWidth(), 40, 'F');
+  pdf.text(title, 40, 25);
+  
+  // Get table data
+  const table = document.getElementById('queueTable');
+  const headers = [];
+  const rows = [];
+  
+  // Get headers
+  table.querySelectorAll('thead th').forEach(th => {
+    headers.push(th.textContent.trim());
+  });
+  
+  // Get rows
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    // Skip hidden rows (from search filtering)
+    if (tr.style.display === 'none') return;
+    
+    const row = [];
+    tr.querySelectorAll('td').forEach(td => {
+      row.push(td.textContent.trim());
+    });
+    rows.push(row);
+  });
+  
+  // Add table to PDF
+  pdf.autoTable({
+    head: [headers],
+    body: rows,
+    startY: 60,
+    styles: {
+      textColor: [0, 0, 0], // Black text for content
+      fontSize: 8,
+      cellPadding: 5,
+      overflow: 'linebreak'
+    },
+    headStyles: {
+      fillColor: [163, 0, 0], // Dark red header
+      textColor: [255, 255, 255], // White text
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [240, 240, 240] // Light gray alternate rows
+    },
+    margin: { top: 60 },
+    theme: 'grid'
+  });
+  
+  // Save the PDF
+  pdf.save(`queue_report_${date.replace(/\//g, '-')}.pdf`);
+}
+
+    // Set today's date as default
+    document.getElementById('queueDate').valueAsDate = new Date();
+
+    let selectedRowData = null;
+
+function openPopup(rowData) {
+  selectedRowData = { ...rowData };
+  document.getElementById('popupInfo').textContent = `Queue Entry: ${rowData.queueNumber || '—'}`;
+  document.getElementById('popup').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
+
+function closePopup() {
+  document.getElementById('popup').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+}
+
+function deleteEntry() {
+  alert(`Deleted ${selectedRowData.queueNumber || 'this entry'}`);
+  closePopup();
+}
+
+
+
+  </script>
+
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+<div class="popup" id="popup">
+  <p id="popupInfo"></p>
+  <button onclick="deleteEntry()">Delete</button>
+  <button onclick="closePopup()">Close</button>
+</div>
+
+
+</body>
+</html>

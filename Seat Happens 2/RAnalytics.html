@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reservation Analytics - Ches Café</title>
+  <link rel="stylesheet" href="ranalytics.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+<div class="popup" id="popup">
+  <p id="popupInfo"></p>
+  <button onclick="deleteEntry()">Delete</button>
+  <button onclick="closePopup()">Close</button>
+</div>
+
+
+  <div class="container">
+    <header>
+      <div class="back-icon" onclick="window.location.href='dailyreportR.html'">
+        <img src="back icon.png" alt="Back" />
+      </div>
+      <h1>RESERVATION ANALYTICS</h1>
+    </header>
+
+    <div class="calendar-section">
+      <input type="date" id="reservationDate">
+    </div>
+
+    <section class="metrics-section">
+  <div class="metric-box">
+    <h3>Total Reservations</h3>
+    <p>98</p>
+  </div>
+  <div class="metric-box">
+    <h3>Completion Rate</h3>
+    <p>82%</p>
+  </div>
+  <div class="metric-box">
+    <h3>Popular Choice</h3>
+    <p>Outdoor</p>
+  </div>
+</section>
+
+
+    <!-- Top Charts - Status and Area Preferences -->
+    <div class="analytics-top-center">
+      <div class="chart-section">
+        <h3>Reservation Status Breakdown</h3>
+        <div class="chart-container">
+          <canvas id="reservationChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-section">
+        <h3>Reservation Area Preferences</h3>
+        <div class="chart-container">
+          <canvas id="areaChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Width Chart - Guests per Hour -->
+    <div class="full-width-chart">
+      <div class="chart-section">
+        <h3>Guests per Hour</h3>
+        <div class="chart-container">
+          <canvas id="guestsPerHourChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT -->
+    <section class="report">
+      <h2>DAILY REPORT - RESERVATIONS</h2>
+      <div class="search-export-bar">
+        <input type="text" id="searchInput" placeholder="Search by name or ID" onkeyup="filterTable()">
+        <div class="export-buttons">
+          <button onclick="exportTableToCSV('reservations_report.csv')">Export CSV</button>
+          <button onclick="exportToPDF()">Export PDF</button>
+          <button onclick="exportToExcel()">Export Excel</button>          
+          <button onclick="window.location.href='RArchives.html'">View Archives</button>
+        </div>
+      </div>
+
+      <div class="report-table">
+        <table id="reservationTable">
+          <thead>
+            <tr>
+              <th>Customer Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Guests</th>
+              <th>Area</th>
+              <th>Time Reserved</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="reservationBody">
+            <tr>
+            <td>Jana Dela Cruz</td><td>jana@example.com</td><td>09123456789</td><td>4</td><td>Outdoor</td><td>6:30 PM</td><td>Completed</td>
+            </tr>
+            <tr>
+              <td>Mark Reyes</td><td>mark@example.com</td><td>09876543210</td><td>2</td><td>Indoor</td><td>7:00 PM</td><td>No Show</td>
+            </tr>
+            <tr>
+             <td>Sarah Johnson</td><td>sarah@example.com</td><td>09234567891</td><td>6</td><td>Outdoor</td><td>7:30 PM</td><td>Completed</td>
+            </tr>
+            <tr>
+              <td>Miguel Santos</td><td>miguel@example.com</td><td>09345678912</td><td>3</td><td>Indoor</td><td>8:00 PM</td><td>Cancelled</td>
+            </tr>
+            <tr>
+              <td>Anna Lopez</td><td>anna@example.com</td><td>09456789123</td><td>2</td><td>Outdoor</td><td>8:30 PM</td><td>Completed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    initializeCharts();
+  });
+
+  function initializeCharts() {
+    // Chart 1: Reservation Status Breakdown (Removed "Cancelled")
+    new Chart(document.getElementById('reservationChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Completed', 'No Show'],
+        datasets: [{
+          data: [60, 18], // Removed cancelled (20)
+          backgroundColor: ['#00cc66', '#cc0000'] // Only 2 colors now
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: 'white', padding: 20 }
+          }
+        }
+      }
+    });
+
+    // Chart 2: Reservation Area Preferences (Removed "VIP Room")
+    new Chart(document.getElementById('areaChart'), {
+      type: 'pie',
+      data: {
+        labels: ['Outdoor', 'Indoor'],
+        datasets: [{
+          data: [40, 35], // Removed VIP Room (25)
+          backgroundColor: ['#ff9999', '#66b3ff'] // Only 2 colors now
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: 'white', padding: 20 }
+          }
+        }
+      }
+    });
+
+    // Chart 3: Guests per Hour (unchanged)
+    new Chart(document.getElementById('guestsPerHourChart'), {
+      type: 'line',
+      data: {
+        labels: ['5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM'],
+        datasets: [{
+          label: 'Total Guests',
+          data: [25, 45, 85, 72, 38, 15],
+          borderColor: '#ff9999',
+          backgroundColor: 'rgba(255, 153, 153, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#ff6666',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: 'white' }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: 'white' },
+            grid: { color: 'rgba(255,255,255,0.1)' }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: 'white' },
+            grid: { color: 'rgba(255,255,255,0.1)' }
+          }
+        }
+      }
+    });
+  }
+
+    // Table filtering function
+    function filterTable() {
+      const input = document.getElementById("searchInput").value.toUpperCase();
+      const rows = document.querySelectorAll("#reservationTable tbody tr");
+      
+      rows.forEach(row => {
+        const id = row.cells[0].innerText.toUpperCase();
+        const name = row.cells[1].innerText.toUpperCase();
+        const email = row.cells[2].innerText.toUpperCase();
+        
+        if (id.includes(input) || name.includes(input) || email.includes(input)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Export to CSV function
+    function exportTableToCSV(filename) {
+      const table = document.getElementById("reservationTable");
+      const rows = table.querySelectorAll("tr");
+      const csv = [];
+      
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td, th");
+        const csvRow = [];
+        cols.forEach(col => {
+          csvRow.push('"' + col.innerText.replace(/"/g, '""') + '"');
+        });
+        csv.push(csvRow.join(","));
+      });
+      
+      const csvContent = csv.join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    function exportToExcel() {
+  const table = document.getElementById("reservationTable");
+  const rows = table.querySelectorAll("tr");
+  const data = [];
+  
+  // Get headers
+  const headers = [];
+  table.querySelectorAll('thead th').forEach(th => {
+    headers.push(th.textContent.trim());
+  });
+  data.push(headers);
+  
+  // Get rows (skip hidden rows from search filtering)
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    
+    const row = [];
+    tr.querySelectorAll('td').forEach(td => {
+      row.push(td.textContent.trim());
+    });
+    data.push(row);
+  });
+  
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, "Reservations");
+  
+  // Get current date for filename
+  const date = document.getElementById('reservationDate').value || new Date().toLocaleDateString();
+  const filename = `reservations_report_${date.replace(/\//g, '-')}.xlsx`;
+  
+  // Export the workbook
+  XLSX.writeFile(wb, filename);
+}
+
+    // Export to PDF
+    async function exportToPDF() {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    
+    // Get the selected date or use current date
+    const date = document.getElementById('reservationDate').value || new Date().toLocaleDateString();
+    const title = `Reservation Analytics Report - ${date}`;
+    
+    // Set title styling
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(20);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFillColor(163, 0, 0);
+    pdf.rect(0, 0, pdf.internal.pageSize.getWidth(), 50, 'F');
+    pdf.text(title, 40, 35);
+    
+    // Add metrics section
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Key Metrics', 40, 80);
+    
+    // Get metric values
+    const metrics = [
+      { label: 'Total Reservations', value: '98' },
+      { label: 'Completion Rate', value: '82%' },
+      { label: 'Popular Choice', value: 'Outdoor' }
+    ];
+    
+    // Add metrics boxes
+    let yPosition = 100;
+    metrics.forEach((metric, index) => {
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(40 + (index * 180), yPosition - 15, 160, 50, 'F');
+      pdf.setFontSize(12);
+      pdf.text(metric.label, 50 + (index * 180), yPosition);
+      pdf.setFontSize(16);
+      pdf.setTextColor(163, 0, 0);
+      pdf.text(metric.value, 50 + (index * 180), yPosition + 20);
+      pdf.setTextColor(0, 0, 0);
+    });
+    
+    yPosition += 70;
+    
+    // Add chart sections
+    pdf.setFontSize(14);
+    pdf.text('Analytics Charts', 40, yPosition);
+    yPosition += 30;
+    
+    // Capture charts as images
+    try {
+      // First row of charts (status and area)
+      const chart1 = await html2canvas(document.getElementById('reservationChart'));
+      const chart2 = await html2canvas(document.getElementById('areaChart'));
+      
+      // Add first chart (Reservation Status Breakdown)
+      pdf.addImage(chart1.toDataURL('image/png'), 'PNG', 40, yPosition, 250, 150);
+      pdf.text('Reservation Status Breakdown', 50, yPosition + 170);
+      
+      // Add second chart (Reservation Area Preferences)
+      pdf.addImage(chart2.toDataURL('image/png'), 'PNG', 310, yPosition, 250, 150);
+      pdf.text('Reservation Area Preferences', 320, yPosition + 170);
+      
+      yPosition += 200;
+      
+      // Second row (guests per hour)
+      const chart3 = await html2canvas(document.getElementById('guestsPerHourChart'));
+      pdf.addImage(chart3.toDataURL('image/png'), 'PNG', 40, yPosition, 520, 200);
+      pdf.text('Guests per Hour', 50, yPosition + 210);
+      
+      yPosition += 250;
+    } catch (error) {
+      console.error('Error capturing charts:', error);
+      // Fallback to placeholders if chart capture fails
+      pdf.setFontSize(12);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Charts could not be rendered', 40, yPosition);
+      yPosition += 30;
+    }
+    
+    // Add table title
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Reservation Details', 40, yPosition);
+    yPosition += 30;
+    
+    // Get table data
+    const table = document.getElementById('reservationTable');
+    const headers = [];
+    const rows = [];
+    
+    // Get headers
+    table.querySelectorAll('thead th').forEach(th => {
+      headers.push(th.textContent.trim());
+    });
+    
+    // Get rows
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      const row = [];
+      tr.querySelectorAll('td').forEach(td => {
+        row.push(td.textContent.trim());
+      });
+      rows.push(row);
+    });
+    
+    // Add table to PDF
+    pdf.autoTable({
+      head: [headers],
+      body: rows,
+      startY: yPosition,
+      styles: {
+        textColor: [0, 0, 0],
+        fontSize: 8,
+        cellPadding: 5,
+        overflow: 'linebreak'
+      },
+      headStyles: {
+        fillColor: [163, 0, 0],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [240, 240, 240]
+      },
+      margin: { top: yPosition },
+      theme: 'grid'
+    });
+    
+    // Save the PDF
+    pdf.save(`reservation_analytics_${date.replace(/\//g, '-')}.pdf`);
+  }
+
+    // Set default date to today
+    document.getElementById('reservationDate').valueAsDate = new Date();
+  
+  let selectedReservation = null;
+
+  function openPopup(row) {
+    selectedReservation = row;
+    const info = `Reservation ID: ${row.cells[0].innerText} - ${row.cells[1].innerText}`;
+    document.getElementById('popupInfo').textContent = info;
+    document.getElementById('popup').style.display = 'block';
+    document.getElementById('overlay').style.display = 'block';
+  }
+
+  function closePopup() {
+    document.getElementById('popup').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+  }
+
+  function deleteEntry() {
+    if (selectedReservation) {
+      selectedReservation.remove();
+      alert('Reservation deleted.');
+    }
+    closePopup();
+  }
+
+  // Attach popup to each row
+  document.querySelectorAll("#reservationTable tbody tr").forEach(row => {
+    row.addEventListener('click', () => openPopup(row));
+  });
+  
+  
+  </script>
+</body>
+</html>
