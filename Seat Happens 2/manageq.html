@@ -305,7 +305,9 @@
           timestamp: currentlyServedCustomer.timestamp,
           calledAt: currentlyServedCustomer.calledAt,
           completedAt: firebase.database.ServerValue.TIMESTAMP,
-          status: 'completed'
+          status: 'completed',
+          createdAt: currentlyServedCustomer.createdAt,
+          originalFirebaseKey: currentlyServedCustomer.firebaseKey
         };
         
         // Move to done list organized by date
@@ -334,49 +336,73 @@
       }
     }
 
-    // Function to delete current customer entirely
-    async function deleteCurrentCustomer() {
-      if (!currentlyServedCustomer) {
-        alert('No customer currently being served');
-        return;
-      }
+    // Function to mark current customer as "no show" and move to done list
+async function deleteCurrentCustomer() {
+  if (!currentlyServedCustomer) {
+    alert('No customer currently being served');
+    return;
+  }
 
-      if (!confirm(`Delete ${currentlyServedCustomer.name} (${currentlyServedCustomer.queueNumber}) entirely from the system?`)) {
-        return;
-      }
+  if (!confirm(`Mark ${currentlyServedCustomer.name} (${currentlyServedCustomer.queueNumber}) as "No Show"?`)) {
+    return;
+  }
 
-      try {
-        // Disable the delete button to prevent multiple clicks
-        const deleteBtn = document.getElementById('deleteBtn');
-        deleteBtn.disabled = true;
-        deleteBtn.textContent = 'DELETING...';
+  // Disable the button to prevent multiple clicks
+  const deleteBtn = document.getElementById('deleteBtn');
+  deleteBtn.disabled = true;
+  deleteBtn.textContent = 'PROCESSING...';
 
-        // Store reference before deletion for logging
-        const customerName = currentlyServedCustomer.name;
-        const customerNumber = currentlyServedCustomer.queueNumber;
-        const firebaseKey = currentlyServedCustomer.firebaseKey;
+  try {
+    // Store customer info for logging
+    const customerName = currentlyServedCustomer.name;
+    const customerNumber = currentlyServedCustomer.queueNumber;
+    const firebaseKey = currentlyServedCustomer.firebaseKey;
 
-        // Remove from nowServing entirely - no transfer to done list
-        await database.ref(`nowServing/${firebaseKey}`).remove();
-        
-        console.log(`Successfully deleted ${customerName} (${customerNumber}) from the system`);
-        
-        // Show success message
-        alert(`Successfully removed ${customerName} from the system`);
-        
-        // Reset button text
-        deleteBtn.textContent = 'DELETE';
-        
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-        alert('Error deleting customer: ' + error.message);
-        
-        // Re-enable the button if there was an error
-        const deleteBtn = document.getElementById('deleteBtn');
-        deleteBtn.disabled = false;
-        deleteBtn.textContent = 'DELETE';
-      }
-    }
+    // Get the date from the original timestamp (when they joined the queue)
+    const queueDate = new Date(currentlyServedCustomer.timestamp);
+    const dateKey = queueDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Prepare done customer data - create a clean copy with "no show" status
+    const doneCustomerData = {
+      name: currentlyServedCustomer.name,
+      email: currentlyServedCustomer.email,
+      phone: currentlyServedCustomer.phone,
+      queueNumber: currentlyServedCustomer.queueNumber,
+      guests: currentlyServedCustomer.guests,
+      location: currentlyServedCustomer.location,
+      timestamp: currentlyServedCustomer.timestamp,
+      calledAt: currentlyServedCustomer.calledAt,
+      completedAt: firebase.database.ServerValue.TIMESTAMP,
+      status: 'no show', // Changed from 'completed' to 'no show'
+      createdAt: currentlyServedCustomer.createdAt,
+      originalFirebaseKey: currentlyServedCustomer.firebaseKey
+    };
+    
+    // Move to done list organized by date
+    const doneRef = database.ref(`done/${dateKey}`).push();
+    await doneRef.set(doneCustomerData);
+    
+    // Remove from nowServing
+    await database.ref(`nowServing/${firebaseKey}`).remove();
+    
+    console.log(`Successfully marked ${customerNumber} (${customerName}) as no show`);
+    
+    // Show success message
+    alert(`Successfully marked ${customerName} as "No Show"`);
+    
+    // Reset button text
+    deleteBtn.textContent = 'DELETE';
+    
+  } catch (error) {
+    console.error('Error marking customer as no show:', error);
+    console.error('Error details:', error.message);
+    alert(`Error marking customer as no show: ${error.message}`);
+    
+    // Re-enable the button if there was an error
+    deleteBtn.disabled = false;
+    deleteBtn.textContent = 'DELETE';
+  }
+}
 
     // Function to load queues and now serving from Firebase
     function loadQueues() {

@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archives</title>
-  <link rel="stylesheet" href="Archives.css">
+  <link rel="stylesheet" href="QArchives.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -15,7 +17,9 @@
     <main>
       <h1>ARCHIVED QUEUE</h1>
       <div class="top-buttons">
-        <button class="red-button" onclick="loadDeleted()">Load Deleted Queue</button>
+        <div class="calendar-section">
+          <input type="date" id="queueDate" onchange="loadArchivedQueue()">
+        </div>
       </div>
       <div class="report-table">
         <table>
@@ -28,6 +32,8 @@
               <th>Number of Guests</th>
               <th>Place</th>
               <th>Time Registered</th>
+              <th>Time Served</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody id="queueBody"></tbody>
@@ -39,71 +45,144 @@
   <div class="overlay" id="overlay" onclick="closePopup()"></div>
   <div class="popup" id="popup">
     <p id="popupInfo"></p>
+    <div id="popupDetails"></div>
     <div id="popupTimestamps"></div>
     <button onclick="restoreEntry()" id="restoreButton">Restore</button>
     <button onclick="closePopup()">Close</button>
   </div>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtxDpQKE5mXG90SUuX5DfyLmeL7qXCDQs",
+      authDomain: "chess-queue.firebaseapp.com",
+      databaseURL: "https://chess-queue-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "chess-queue",
+      storageBucket: "chess-queue.appspot.com",
+      messagingSenderId: "882197528383",
+      appId: "1:882197528383:web:9e6cb10970b0875baf5d8a",
+      measurementId: "G-KKQTXQDV9T"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     let selectedRowData = null;
-    const deleted = [
-      {
-        id: 'Q04',
-        name: 'Marco Reyes',
-        email: 'queue4@example.com',
-        phone: '09334445555',
-        guests: 3,
-        place: 'Indoor',
-        time: '12:00 PM',
-        deletedAt: '2024-06-25 11:10 AM'
-      },
-      {
-        id: 'Q05',
-        name: 'Sophia Tan',
-        email: 'queue5@example.com',
-        phone: '09177778888',
-        guests: 2,
-        place: 'Outdoor',
-        time: '01:30 PM',
-        deletedAt: '2024-06-26 01:45 PM'
-      }
-    ];
 
-    function loadDeleted() {
+    async function loadArchivedQueue() {
+      const dateInput = document.getElementById('queueDate');
       const tableBody = document.getElementById('queueBody');
-      tableBody.innerHTML = '';
 
-      if (deleted.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7">No deleted entries found.</td></tr>';
+      if (!dateInput || !dateInput.value) {
+        tableBody.innerHTML = '<tr><td colspan="9">Please select a date.</td></tr>';
         return;
       }
 
-      deleted.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.classList.add('highlight-row');
-        tr.innerHTML = `
-          <td>${row.id}</td>
-          <td>${row.name}</td>
-          <td>${row.email}</td>
-          <td>${row.phone}</td>
-          <td>${row.guests}</td>
-          <td>${row.place}</td>
-          <td>${row.time}</td>
-        `;
-        tr.onclick = () => openPopup(row);
-        tableBody.appendChild(tr);
-      });
+      const selectedDate = dateInput.value;
+      tableBody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
+
+      try {
+        const snapshot = await db.ref(`archived/${selectedDate}`).once('value');
+        const data = snapshot.val();
+
+        if (!data) {
+          tableBody.innerHTML = '<tr><td colspan="9">No archived entries for this date.</td></tr>';
+          return;
+        }
+
+        tableBody.innerHTML = '';
+
+        Object.entries(data).forEach(([key, entry]) => {
+          entry.firebaseKey = key; // Add key for restoration purposes
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${entry.queueNumber || '—'}</td>
+            <td>${entry.name || '—'}</td>
+            <td>${entry.email || '—'}</td>
+            <td>${entry.phone || '—'}</td>
+            <td>${entry.guests || '—'}</td>
+            <td>${entry.location || '—'}</td>
+            <td>${formatTimestamp(entry.createdAt)}</td>
+            <td>${formatTimestamp(entry.calledAt)}</td>
+            <td>${entry.status || '—'}</td>
+          `;
+          tr.onclick = () => openPopup(entry);
+          tableBody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error(error);
+        tableBody.innerHTML = '<tr><td colspan="9">Error loading data. Please try again later.</td></tr>';
+      }
     }
 
-    function openPopup(rowData) {
-      selectedRowData = { ...rowData };
+    function openPopup(entryData) {
+      selectedRowData = { ...entryData };
 
-      document.getElementById('popupInfo').textContent = `Queue Entry: ${rowData.id}`;
-      document.getElementById('popupTimestamps').innerHTML = `<small>Deleted At: ${rowData.deletedAt || '—'}</small>`;
+      document.getElementById('popupInfo').textContent = `Queue Entry: ${entryData.queueNumber}`;
+      document.getElementById('popupDetails').innerHTML = `
+        <strong>Customer:</strong> ${entryData.name}<br>
+        <strong>Email:</strong> ${entryData.email || 'N/A'}<br>
+        <strong>Phone:</strong> ${entryData.phone || 'N/A'}<br>
+        <strong>Guests:</strong> ${entryData.guests}<br>
+        <strong>Location:</strong> ${entryData.location || 'N/A'}<br>
+        <strong>Status:</strong> ${entryData.status || 'N/A'}
+      `;
 
-      document.getElementById('restoreButton').style.display = 'inline-block';
+      document.getElementById('popupTimestamps').innerHTML = `
+        <small>
+          <strong>Registered:</strong> ${formatTimestamp(entryData.createdAt)}<br>
+          <strong>Called:</strong> ${formatTimestamp(entryData.calledAt)}
+        </small>
+      `;
+
       document.getElementById('popup').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
+    }
+
+    async function restoreEntry() {
+      if (!selectedRowData || !selectedRowData.firebaseKey) {
+        alert('No entry selected or missing database key.');
+        return;
+      }
+
+      const queueDate = document.getElementById('queueDate').value;
+      if (!queueDate) {
+        alert('Date not set.');
+        return;
+      }
+
+      try {
+        // Clone and clean data
+        const restoreData = { ...selectedRowData };
+        delete restoreData.firebaseKey;
+        delete restoreData.archivedAt;
+
+        // Move to `done/{date}`
+        await db.ref(`done/${queueDate}`).push().set(restoreData);
+
+        // Remove from `archived/{date}`
+        await db.ref(`archived/${queueDate}/${selectedRowData.firebaseKey}`).remove();
+
+        alert(`Queue #${selectedRowData.queueNumber} restored.`);
+        closePopup();
+        loadArchivedQueue(); // Refresh table
+      } catch (error) {
+        console.error("Error restoring entry:", error);
+        alert("Failed to restore. Please try again.");
+      }
+    }
+
+    function formatTimestamp(timestamp) {
+      if (!timestamp) return '—';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
     }
 
     function closePopup() {
@@ -111,18 +190,10 @@
       document.getElementById('overlay').style.display = 'none';
     }
 
-    function restoreEntry() {
-      const index = deleted.findIndex(d => d.id === selectedRowData.id);
-      if (index !== -1) {
-        alert(`Restored ${selectedRowData.id}`);
-        deleted.splice(index, 1);
-        loadDeleted();
-      }
-      closePopup();
-    }
-
-    // Load deleted queue on page load
-    window.onload = loadDeleted;
+    document.addEventListener('DOMContentLoaded', () => {
+      const dateInput = document.getElementById('queueDate');
+      if (dateInput) dateInput.valueAsDate = new Date();
+    });
   </script>
 </body>
 </html>

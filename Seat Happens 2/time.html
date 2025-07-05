@@ -230,7 +230,7 @@ async function renderTimeButtons() {
       
       // Check if time is in the past (only if selected date is today)
       const isPastTime = isToday && slotDateTime < now;
-      const isAvailable = remaining >= guestCount && !isPastTime;
+      const isAvailable = true/*remaining >= guestCount && !isPastTime*/;
 
       logDebug(`Time slot ${time}: Slot time=${slotDateTime}, Now=${now}, Past=${isPastTime}, Available=${isAvailable}`);
 

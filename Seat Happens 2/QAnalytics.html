@@ -6,11 +6,6 @@
   <title>Queue Analytics - Ches Café</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <link rel="stylesheet" href="QAnalytics.css">
 </head>
 <body>
@@ -23,7 +18,7 @@
 
   <div class="container">
     <header>
-     <a class="back-icon" href="dailyreportQ.html">
+     <a class="back-icon" href="Transition.html">
   <img src="back icon.png" alt="Back" />
 </a>
       <h1>QUEUE ANALYTICS</h1>
@@ -127,7 +122,6 @@
         <div class="export-buttons">
           <button onclick="exportTableToCSV('queue_report.csv')">Export CSV</button>
           <button onclick="exportToPDF()">Export PDF</button>
-          <button onclick="exportToExcel()">Export Excel</button>
             <button onclick="window.location.href='QArchives.html'">View Archives</button>
         </div>
       </div>
@@ -153,6 +147,18 @@
       </div>
     </section>
   </div>
+
+  <div class="overlay" id="overlay" onclick="closePopup()"></div>
+<div class="popup" id="popup">
+  <p id="popupInfo"></p>
+  <div id="popupDetails"></div>
+  <div id="popupTimestamps"></div>
+  <button onclick="archiveEntry()" id="archiveButton">Archive</button>
+  <button onclick="deleteEntry()" id="deleteButton">Delete</button>
+  <button onclick="restoreEntry()" id="restoreButton">Restore</button>
+  <button onclick="closePopup()">Close</button>
+</div>
+
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
@@ -272,7 +278,7 @@ async function loadQueueRowsFromRTDB() {
       return;
     }
 
-    const rows = Object.values(data);
+    const rows = Object.entries(data);
     let totalMatchingEntries = 0;
     let indoorCount = 0;
     let outdoorCount = 0;
@@ -280,19 +286,20 @@ async function loadQueueRowsFromRTDB() {
     let noShowCount = 0;
     let waitTimeTotal = 0;
     let waitCount = 0;
-    let hourlyCounts = new Array(12).fill(0); // 10 AM to 9 PM
-    let guestCounts = new Array(12).fill(0);  // guest count per hour
+    let hourlyCounts = new Array(12).fill(0);
+    let guestCounts = new Array(12).fill(0);
     let waitUnder5 = 0;
     let wait5to10 = 0;
     let waitOver10 = 0;
 
     tableBody.innerHTML = '';
 
-    rows.forEach(entry => {
+    rows.forEach(([key, entry]) => {
+      entry.firebaseKey = key;
+
       const location = (entry.location || '').toLowerCase();
       const status = (entry.status || '').toLowerCase();
 
-      // ✅ Filter by place and status
       if ((placeFilter !== 'both' && location !== placeFilter) ||
           (statusFilter !== 'both' && status !== statusFilter)) {
         return;
@@ -302,7 +309,6 @@ async function loadQueueRowsFromRTDB() {
       const createdDate = new Date(entry.createdAt);
       const hour = createdDate.getHours();
 
-      // ✅ Time filter logic
       if (timeFilter !== 'all') {
         const isMorning = hour >= 8 && hour < 12;
         const isAfternoon = hour >= 12 && hour < 18;
@@ -316,18 +322,14 @@ async function loadQueueRowsFromRTDB() {
         if (!isValidTime) return;
       }
 
-      // ✅ Entry passed all filters
       totalMatchingEntries++;
 
-      // ✅ Count location
       if (location === 'indoor') indoorCount++;
       else if (location === 'outdoor') outdoorCount++;
 
-      // ✅ Count status
       if (status === 'completed') completedCount++;
       else if (status === 'no show') noShowCount++;
 
-      // ✅ Wait time
       if (entry.calledAt && entry.createdAt) {
         const waitMs = entry.calledAt - entry.createdAt;
         if (waitMs > 0) {
@@ -340,7 +342,6 @@ async function loadQueueRowsFromRTDB() {
         }
       }
 
-      // ✅ Hourly & guest traffic (10 AM–9 PM)
       if (hour >= 10 && hour <= 21) {
         const index = hour - 10;
         hourlyCounts[index]++;
@@ -348,7 +349,6 @@ async function loadQueueRowsFromRTDB() {
         guestCounts[index] += guests;
       }
 
-      // ✅ Table row
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${entry.queueNumber || '—'}</td>
@@ -362,11 +362,9 @@ async function loadQueueRowsFromRTDB() {
         <td>${entry.status || '—'}</td>
       `;
       tr.onclick = () => openPopup(entry);
-tableBody.appendChild(tr);
-
+      tableBody.appendChild(tr);
     });
 
-    // ✅ Peak hour
     const peakIndex = hourlyCounts.indexOf(Math.max(...hourlyCounts));
     const hourLabels = [
       '10 AM - 11 AM', '11 AM - 12 PM', '12 PM - 1 PM', '1 PM - 2 PM',
@@ -376,7 +374,6 @@ tableBody.appendChild(tr);
     const peakHourText = hourlyCounts[peakIndex] > 0 ? hourLabels[peakIndex] : '—';
     document.querySelector('.metric-box:nth-child(3) p').textContent = peakHourText;
 
-    // ✅ Metric updates
     document.querySelector('.metric-box:nth-child(1) p').textContent = totalMatchingEntries;
 
     const avgWaitMins = waitCount > 0 ? Math.round((waitTimeTotal / waitCount) / 60000) : '—';
@@ -392,7 +389,6 @@ tableBody.appendChild(tr);
     }
     document.querySelector('.metric-box:nth-child(4) p').textContent = preferredArea;
 
-    // ✅ Chart updates
     if (placeChart) {
       if (placeFilter === 'both') {
         placeChart.data.datasets[0].data = [indoorCount, outdoorCount];
@@ -451,6 +447,7 @@ tableBody.appendChild(tr);
     }
   }
 }
+
 ///////////////////////////////////////////////////////////////////////////////////
 
     // Initialize charts after DOM is loaded
@@ -460,115 +457,6 @@ tableBody.appendChild(tr);
 
     // Global variables for all charts
     let hourlyChart, dayChart, waitChart, placeChart, noShowChart;
-
-    // Sample data for different filters
-    const chartData = {
-      hourly: {
-        all: {
-          both: [5, 9, 15, 20, 12, 7],
-          indoor: [3, 6, 10, 14, 8, 4],
-          outdoor: [2, 3, 5, 6, 4, 3]
-        },
-        morning: {
-          both: [5, 9, 15, 8, 0, 0],
-          indoor: [3, 6, 10, 5, 0, 0],
-          outdoor: [2, 3, 5, 3, 0, 0]
-        },
-        afternoon: {
-          both: [0, 0, 15, 20, 12, 7],
-          indoor: [0, 0, 10, 14, 8, 4],
-          outdoor: [0, 0, 5, 6, 4, 3]
-        },
-        evening: {
-          both: [0, 0, 0, 0, 12, 7],
-          indoor: [0, 0, 0, 0, 8, 4],
-          outdoor: [0, 0, 0, 0, 4, 3]
-        }
-      },
-      daily: {
-        all: {
-          both: [12, 14, 18, 20, 25, 22, 10],
-          indoor: [8, 10, 12, 14, 17, 15, 7],
-          outdoor: [4, 4, 6, 6, 8, 7, 3]
-        },
-        completed: {
-          both: [10, 12, 15, 17, 21, 19, 8],
-          indoor: [7, 9, 10, 12, 14, 13, 6],
-          outdoor: [3, 3, 5, 5, 7, 6, 2]
-        },
-        noshow: {
-          both: [2, 2, 3, 3, 4, 3, 2],
-          indoor: [1, 1, 2, 2, 3, 2, 1],
-          outdoor: [1, 1, 1, 1, 1, 1, 1]
-        }
-      },
-      wait: {
-        all: {
-          both: [20, 45, 35],
-          indoor: [15, 35, 20],
-          outdoor: [5, 10, 15]
-        },
-        morning: {
-          both: [15, 25, 20],
-          indoor: [12, 20, 15],
-          outdoor: [3, 5, 5]
-        },
-        afternoon: {
-          both: [25, 50, 40],
-          indoor: [18, 40, 25],
-          outdoor: [7, 10, 15]
-        },
-        evening: {
-          both: [10, 20, 15],
-          indoor: [8, 15, 10],
-          outdoor: [2, 5, 5]
-        }
-      },
-      place: {
-        all: {
-          all: [70, 30],
-          completed: [75, 25],
-          noshow: [60, 40]
-        },
-        morning: {
-          all: [65, 35],
-          completed: [70, 30],
-          noshow: [55, 45]
-        },
-        afternoon: {
-          all: [75, 25],
-          completed: [80, 20],
-          noshow: [65, 35]
-        },
-        evening: {
-          all: [60, 40],
-          completed: [65, 35],
-          noshow: [50, 50]
-        }
-      },
-      noshow: {
-        all: {
-          both: [85, 15],
-          indoor: [88, 12],
-          outdoor: [80, 20]
-        },
-        morning: {
-          both: [90, 10],
-          indoor: [92, 8],
-          outdoor: [85, 15]
-        },
-        afternoon: {
-          both: [82, 18],
-          indoor: [85, 15],
-          outdoor: [78, 22]
-        },
-        evening: {
-          both: [88, 12],
-          indoor: [90, 10],
-          outdoor: [85, 15]
-        }
-      }
-    };
     ////////////////////////   INITIALIZE CHARTS    //////////////////////////////////
     function initializeCharts() {
       // Hourly Chart
@@ -781,143 +669,103 @@ tableBody.appendChild(tr);
       }
     }
 
-    // Export to Excel (XLSX) function
-function exportToExcel() {
-  const table = document.getElementById("queueTable");
-  const rows = table.querySelectorAll("tr");
-  const data = [];
-  
-  // Get headers
-  const headers = [];
-  table.querySelectorAll('thead th').forEach(th => {
-    headers.push(th.textContent.trim());
-  });
-  data.push(headers);
-  
-  // Get rows (skip hidden rows from search filtering)
-  table.querySelectorAll('tbody tr').forEach(tr => {
-    if (tr.style.display === 'none') return;
-    
-    const row = [];
-    tr.querySelectorAll('td').forEach(td => {
-      row.push(td.textContent.trim());
-    });
-    data.push(row);
-  });
-  
-  // Create workbook
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, "Queue Report");
-  
-  // Get current date for filename
-  const date = document.getElementById('queueDate').value || new Date().toLocaleDateString();
-  const filename = `queue_report_${date.replace(/\//g, '-')}.xlsx`;
-  
-  // Export the workbook
-  XLSX.writeFile(wb, filename);
-}
-
-    async function exportToPDF() {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('p', 'pt', 'a4');
-  
-  // Get the selected date or use current date
-  const date = document.getElementById('queueDate').value || new Date().toLocaleDateString();
-  const title = `Queue Report - ${date}`;
-  
-  // Set title styling
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(18);
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFillColor(163, 0, 0);
-  pdf.rect(0, 0, pdf.internal.pageSize.getWidth(), 40, 'F');
-  pdf.text(title, 40, 25);
-  
-  // Get table data
-  const table = document.getElementById('queueTable');
-  const headers = [];
-  const rows = [];
-  
-  // Get headers
-  table.querySelectorAll('thead th').forEach(th => {
-    headers.push(th.textContent.trim());
-  });
-  
-  // Get rows
-  table.querySelectorAll('tbody tr').forEach(tr => {
-    // Skip hidden rows (from search filtering)
-    if (tr.style.display === 'none') return;
-    
-    const row = [];
-    tr.querySelectorAll('td').forEach(td => {
-      row.push(td.textContent.trim());
-    });
-    rows.push(row);
-  });
-  
-  // Add table to PDF
-  pdf.autoTable({
-    head: [headers],
-    body: rows,
-    startY: 60,
-    styles: {
-      textColor: [0, 0, 0], // Black text for content
-      fontSize: 8,
-      cellPadding: 5,
-      overflow: 'linebreak'
-    },
-    headStyles: {
-      fillColor: [163, 0, 0], // Dark red header
-      textColor: [255, 255, 255], // White text
-      fontStyle: 'bold'
-    },
-    alternateRowStyles: {
-      fillColor: [240, 240, 240] // Light gray alternate rows
-    },
-    margin: { top: 60 },
-    theme: 'grid'
-  });
-  
-  // Save the PDF
-  pdf.save(`queue_report_${date.replace(/\//g, '-')}.pdf`);
-}
+    function exportToPDF() {
+      window.print();
+    }
 
     // Set today's date as default
     document.getElementById('queueDate').valueAsDate = new Date();
 
     let selectedRowData = null;
 
-function openPopup(rowData) {
-  selectedRowData = { ...rowData };
-  document.getElementById('popupInfo').textContent = `Queue Entry: ${rowData.queueNumber || '—'}`;
+function openPopup(entryData) {
+  selectedRowData = { ...entryData };
+
+  document.getElementById('popupInfo').textContent = `Queue Entry: ${entryData.queueNumber}`;
+  document.getElementById('popupDetails').innerHTML = `
+    <strong>Customer:</strong> ${entryData.name}<br>
+    <strong>Email:</strong> ${entryData.email || 'N/A'}<br>
+    <strong>Phone:</strong> ${entryData.phone || 'N/A'}<br>
+    <strong>Guests:</strong> ${entryData.guests}<br>
+    <strong>Location:</strong> ${entryData.location ? entryData.location.toUpperCase() : 'N/A'}<br>
+    <strong>Status:</strong> ${entryData.status ? entryData.status.toUpperCase() : 'N/A'}
+  `;
+
+  document.getElementById('popupTimestamps').innerHTML = `
+    <small>
+      <strong>Registered:</strong> ${formatTimestamp(entryData.createdAt)}<br>
+      <strong>Called:</strong> ${formatTimestamp(entryData.calledAt)}
+    </small>
+  `;
+
+  document.getElementById('archiveButton').style.display = 'none';
+  document.getElementById('restoreButton').style.display = 'none';
+  document.getElementById('deleteButton').style.display = 'inline-block';
+
   document.getElementById('popup').style.display = 'block';
   document.getElementById('overlay').style.display = 'block';
 }
+
+function formatTimestamp(timestamp) {
+  if (!timestamp) return 'N/A';
+  const date = new Date(timestamp);
+  return date.toLocaleString('en-PH', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+}
+
 
 function closePopup() {
   document.getElementById('popup').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
 }
 
-function deleteEntry() {
-  alert(`Deleted ${selectedRowData.queueNumber || 'this entry'}`);
-  closePopup();
+//////////// FUNCTION TO DELETE (MOVE TO ARCHIVE) //////////////////////////////
+async function deleteEntry() {
+  if (!selectedRowData || !selectedRowData.firebaseKey) {
+    alert('No entry selected or missing database key.');
+    return;
+  }
+
+  const queueDate = document.getElementById('queueDate').value;
+  if (!queueDate) {
+    alert('Date not set.');
+    return;
+  }
+
+  const confirmDelete = confirm(`Are you sure you want to archive Queue #${selectedRowData.queueNumber}?`);
+  if (!confirmDelete) return;
+
+  try {
+    // Clone and clean data
+    const archiveData = {
+      ...selectedRowData,
+      archivedAt: firebase.database.ServerValue.TIMESTAMP
+    };
+    delete archiveData.firebaseKey;
+
+    // Move to `archived/{date}`
+    await db.ref(`archived/${queueDate}`).push().set(archiveData);
+
+    // Remove from `done/{date}`
+    await db.ref(`done/${queueDate}/${selectedRowData.firebaseKey}`).remove();
+
+    alert(`Queue #${selectedRowData.queueNumber} archived.`);
+    closePopup();
+    loadQueueRowsFromRTDB(); // Refresh table
+  } catch (error) {
+    console.error("Error archiving entry:", error);
+    alert("Failed to archive. Please try again.");
+  }
 }
 
-
-
   </script>
-
-  <div class="overlay" id="overlay" onclick="closePopup()"></div>
-<div class="popup" id="popup">
-  <p id="popupInfo"></p>
-  <button onclick="deleteEntry()">Delete</button>
-  <button onclick="closePopup()">Close</button>
-</div>
-
-
+  
 </body>
 </html>

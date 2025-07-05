@@ -55,7 +55,7 @@
 
   <div class="container">
     <header>
-      <div class="back-icon" onclick="window.location.href='dailyreportR.html'">
+      <div class="back-icon" onclick="window.location.href='transition.html'">
         <img src="back icon.png" alt="Back" />
       </div>
       <h1>RESERVATION ANALYTICS</h1>
@@ -133,8 +133,7 @@
         <input type="text" id="searchInput" placeholder="Search by name or ID" onkeyup="filterTable()">
         <div class="export-buttons">
           <button onclick="exportToCSV()">Export CSV</button>
-          <button onclick="exportToPDF()">Export PDF</button>
-          <button onclick="exportToExcel()">Export Excel</button>          
+          <button onclick="exportToPDF()">Export PDF</button>        
           <button onclick="viewArchives()">View Archives</button>
         </div>
       </div>
@@ -535,133 +534,8 @@
     document.body.removeChild(link);
   }
 
-  function exportToExcel() {
-    const table = document.getElementById("reservationTable");
-    const workbook = XLSX.utils.table_to_book(table);
-    const date = document.getElementById('reservationDate').value || new Date().toISOString().split('T')[0];
-    XLSX.writeFile(workbook, `reservations_report_${date}.xlsx`);
-  }
-
   async function exportToPDF() {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const date = document.getElementById('reservationDate').value || new Date().toLocaleDateString();
-    const title = `Reservation Analytics Report - ${date}`;
-    
-    // Title
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(20);
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFillColor(163, 0, 0);
-    pdf.rect(0, 0, pdf.internal.pageSize.getWidth(), 50, 'F');
-    pdf.text(title, 40, 35);
-    
-    // Metrics
-    pdf.setFontSize(14);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text('Key Metrics', 40, 80);
-    
-    const metrics = [
-      { label: 'Total Reservations', value: document.getElementById('totalReservations').textContent },
-      { label: 'Completion Rate', value: document.getElementById('completionRate').textContent },
-      { label: 'Popular Choice', value: document.getElementById('popularChoice').textContent }
-    ];
-    
-    let yPosition = 100;
-    metrics.forEach((metric, index) => {
-      pdf.setFillColor(240, 240, 240);
-      pdf.rect(40 + (index * 180), yPosition - 15, 160, 50, 'F');
-      pdf.setFontSize(12);
-      pdf.text(metric.label, 50 + (index * 180), yPosition);
-      pdf.setFontSize(16);
-      pdf.setTextColor(163, 0, 0);
-      pdf.text(metric.value, 50 + (index * 180), yPosition + 20);
-      pdf.setTextColor(0, 0, 0);
-    });
-    
-    yPosition += 70;
-    
-    // Charts
-    pdf.setFontSize(14);
-    pdf.text('Analytics Charts', 40, yPosition);
-    yPosition += 30;
-    
-    try {
-      // Capture charts as images
-      const chart1 = await html2canvas(document.getElementById('reservationChart'));
-      const chart2 = await html2canvas(document.getElementById('areaChart'));
-      const chart3 = await html2canvas(document.getElementById('guestsPerHourChart'));
-      
-      // Add charts to PDF
-      pdf.addImage(chart1.toDataURL('image/png'), 'PNG', 40, yPosition, 250, 150);
-      pdf.text('Reservation Status Breakdown', 50, yPosition + 170);
-      
-      pdf.addImage(chart2.toDataURL('image/png'), 'PNG', 310, yPosition, 250, 150);
-      pdf.text('Reservation Area Preferences', 320, yPosition + 170);
-      
-      yPosition += 200;
-      
-      pdf.addImage(chart3.toDataURL('image/png'), 'PNG', 40, yPosition, 520, 200);
-      pdf.text('Guests per Hour', 50, yPosition + 210);
-      
-      yPosition += 250;
-    } catch (error) {
-      console.error('Error capturing charts:', error);
-      pdf.setFontSize(12);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Charts could not be rendered', 40, yPosition);
-      yPosition += 30;
-    }
-    
-    // Table
-    pdf.setFontSize(14);
-    pdf.text('Reservation Details', 40, yPosition);
-    yPosition += 30;
-    
-    const headers = [];
-    const rows = [];
-    
-    // Get headers
-    document.querySelectorAll('#reservationTable thead th').forEach(th => {
-      headers.push(th.textContent.trim());
-    });
-    
-    // Get rows (skip hidden rows from search)
-    document.querySelectorAll('#reservationTable tbody tr').forEach(tr => {
-      if (tr.style.display === 'none') return;
-      
-      const row = [];
-      tr.querySelectorAll('td').forEach(td => {
-        row.push(td.textContent.trim());
-      });
-      rows.push(row);
-    });
-    
-    // Add table to PDF
-    pdf.autoTable({
-      head: [headers],
-      body: rows,
-      startY: yPosition,
-      styles: {
-        textColor: [0, 0, 0],
-        fontSize: 8,
-        cellPadding: 5,
-        overflow: 'linebreak'
-      },
-      headStyles: {
-        fillColor: [163, 0, 0],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold'
-      },
-      alternateRowStyles: {
-        fillColor: [240, 240, 240]
-      },
-      margin: { top: yPosition },
-      theme: 'grid'
-    });
-    
-    // Save the PDF
-    pdf.save(`reservation_analytics_${date.replace(/\//g, '-')}.pdf`);
+    window.print();
   }
 
   // Popup functions

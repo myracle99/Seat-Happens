@@ -4,45 +4,88 @@ const supabaseUrl = 'https://voaodfnizhkshvjeklrn.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvYW9kZm5pemhrc2h2amVrbHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3OTI5NzcsImV4cCI6MjA2NTM2ODk3N30.wQEe7PpXpmnzD8A5vt67S0-dnHxD-nlYOOamwAvIU5w'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+// Philippine Time offset (UTC+8)
+const PH_OFFSET = 8 * 60 * 60 * 1000;
+
 // DOM Elements
 const reservationBody = document.getElementById('reservationBody')
 const overdueReservationBody = document.getElementById('overdueReservationBody')
 
-// Convert 12-hour time to 24-hour format
-function convertTo24Hour(time12h) {
-  if (!time12h) return '00:00'
-  
-  // Clean up the input string
-  const cleaned = time12h.toString()
-    .trim()
-    .toUpperCase()
-    .replace(/([AP]M)/, ' $1') // Ensure space before AM/PM
-  
-  const [timePart, modifier] = cleaned.split(' ')
-  let [hours, minutes] = timePart.split(':')
-  
-  minutes = minutes || '00'
-  
-  if (hours === '12') hours = '00'
-  if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12)
-  
-  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
+function isReservationOverdue(reservation) {
+  if (!reservation?.reservation_date || !reservation?.reservation_time) return false;
+
+  try {
+    // 1. Configuration - Set your grace period in minutes (e.g., 15 minutes)
+    const GRACE_PERIOD_MINUTES = 15;
+    const gracePeriodMs = GRACE_PERIOD_MINUTES * 60 * 1000;
+
+    // 2. Get current time in Philippine Time (UTC+8)
+    const now = new Date();
+    const philippineOffset = 8 * 60 * 60 * 1000;
+    const nowPH = new Date(now.getTime() + philippineOffset);
+
+    // 3. Parse reservation date and time
+    const [year, month, day] = reservation.reservation_date.split('-');
+    const time24 = convertTo24HourStrict(reservation.reservation_time);
+    if (!time24) return false;
+    const [hours, minutes] = time24.split(':').map(Number);
+
+    // 4. Create reservation datetime in PH time (plus grace period)
+    const reservationDateTime = new Date(Date.UTC(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      hours - 8, // Convert PH time to UTC
+      minutes
+    ));
+    const reservationWithGrace = new Date(reservationDateTime.getTime() + gracePeriodMs);
+
+    // 5. Compare with current time
+    const isOverdue = now > reservationWithGrace;
+
+    // Debug output
+    console.log('Reservation time:', reservationDateTime.toISOString());
+    console.log('With grace period:', reservationWithGrace.toISOString());
+    console.log('Current time:', now.toISOString());
+    console.log('Is overdue:', isOverdue);
+
+    return isOverdue;
+
+  } catch (error) {
+    console.error('Error checking overdue status:', error);
+    return false;
+  }
 }
 
-// Check if reservation is overdue
-function isReservationOverdue(reservation) {
-  if (!reservation.reservation_date || !reservation.reservation_time) return false
+// STRICT 12-hour to 24-hour time conversion
+function convertTo24HourStrict(time12h) {
+  if (!time12h) return null;
   
-  try {
-    const time24 = convertTo24Hour(reservation.reservation_time)
-    const reservationDateTime = new Date(`${reservation.reservation_date}T${time24}`)
-    const now = new Date()
-    
-    return reservationDateTime < now
-  } catch (error) {
-    console.error('Error checking overdue status:', error)
-    return false
+  // Standardize input format
+  const timeStr = time12h.toString().trim().toUpperCase();
+  const regex = /^(\d{1,2})(?::(\d{2}))?\s*([AP]M)?$/;
+  const match = timeStr.match(regex);
+  
+  if (!match) return null;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2] ? match[2].padStart(2, '0') : '00';
+  const period = match[3];
+  
+  // Validate hours
+  if (hours < 1 || hours > 12) return null;
+  
+  // Convert to 24-hour format
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
   }
+  
+  // Validate final time
+  if (hours < 0 || hours > 23) return null;
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 
 // Status formatter
@@ -56,12 +99,10 @@ function formatStatus(status, isOverdue = false) {
 }
 
 // Add reservation to table
-// Add reservation to table
 function addReservationToTable(reservation, isOverdue = false) {
   const row = document.createElement('tr')
   row.dataset.id = reservation.id
 
-  // Only show Cancel button if overdue, otherwise show both
   const actionButtons = isOverdue 
     ? `<button class="cancel-btn" data-id="${reservation.id}">✖ Cancel</button>`
     : `
@@ -84,7 +125,6 @@ function addReservationToTable(reservation, isOverdue = false) {
     </td>
   `;
 
-  // Only add event listeners for buttons that exist
   const completeBtn = row.querySelector('.complete-btn');
   if (completeBtn) {
     completeBtn.addEventListener('click', () => handleComplete(reservation.id, row));
@@ -94,6 +134,19 @@ function addReservationToTable(reservation, isOverdue = false) {
 
   const targetBody = isOverdue ? overdueReservationBody : reservationBody;
   targetBody.appendChild(row);
+}
+
+async function handleComplete(id, row) {
+  if (!confirm("Mark this reservation as completed?")) return;
+
+  try {
+    const moved = await moveReservation(id, 'completed', row);
+    if (moved) {
+      showToast('Reservation marked as completed', 'success');
+    }
+  } catch (error) {
+    showToast(`Error: ${error.message}`, 'error');
+  }
 }
 
 async function handleCancel(id, row) {
@@ -107,7 +160,7 @@ async function handleCancel(id, row) {
     cancelBtn.textContent = 'Cancelling...';
     cancelBtn.disabled = true;
 
-    // Get reservation details
+    // 1. Get reservation details
     const { data: reservation, error: fetchError } = await supabase
       .from('reservations')
       .select('*')
@@ -115,70 +168,59 @@ async function handleCancel(id, row) {
       .single();
 
     if (fetchError) throw new Error(`Failed to fetch reservation: ${fetchError.message}`);
-    if (!reservation.email) throw new Error('No email address found for this reservation');
+    if (!reservation.email) throw new Error('No email address found');
 
-    // Prepare email parameters
+    // 2. Prepare email parameters
     const emailParams = {
-      to_email: reservation.email,  // This is REQUIRED by EmailJS
+      to_email: reservation.email,
       customer_name: reservation.name || 'Guest',
-      customer_phone: reservation.phone || 'Not provided',
-      reservation_place: reservation.place || 'Not specified',
-      reservation_guests: reservation.guest_count || 1,
       reservation_date: reservation.reservation_date || 'Unknown date',
       reservation_time: reservation.reservation_time || 'Unknown time',
       reservation_id: id
     };
 
-    console.log('Email params:', emailParams);
-
-    // First move the reservation
+    // 3. Move to completed_reservations first (to preserve data)
     const moved = await moveReservation(id, 'cancelled', row);
     if (!moved) throw new Error('Failed to move reservation');
 
-    // Then send email
+    // 4. Send cancellation email
     const emailResponse = await emailjs.send(
-      'service_vhgdmi8', // Replace with actual service ID
-      'template_og7265l', // Replace with actual template ID
+      'service_vhgdmi8', // Your EmailJS service ID
+      'template_og7265l', // Your cancellation template ID
       emailParams
     );
 
-    console.log('Email response:', emailResponse);
+    console.log('Email sent:', emailResponse);
     showToast('Reservation cancelled. Notification sent.', 'success');
     
   } catch (error) {
     console.error('Cancellation error:', error);
     
+    // Special handling for missing email
     if (error.message.includes('No email address')) {
-      // Proceed with cancellation but show warning about no email
-      await moveReservation(id, 'cancelled', row);
-      showToast('Reservation cancelled (no email notification sent - missing email)', 'warning');
-    } 
-    else if (error.status === 422) {
-      showToast('Error: Could not send email notification', 'error');
+      await moveReservation(id, 'cancelled', row); // Still cancel but no email
+      showToast('Reservation cancelled (no email sent)', 'warning');
+    } else {
+      showToast(`Cancellation failed: ${error.message}`, 'error');
+      cancelBtn.textContent = originalText;
+      cancelBtn.disabled = false;
     }
-    else {
-      showToast(`Error: ${error.message}`, 'error');
-    }
-    
-    // Restore button state
-    cancelBtn.textContent = originalText;
-    cancelBtn.disabled = false;
   }
 }
-
-// Move reservation to completed_reservations
 async function moveReservation(id, newStatus, rowElement = null) {
   try {
     const { data: originalData, error: fetchError } = await supabase
       .from('reservations')
       .select('*')
       .eq('id', id)
-      .single()
+      .single();
 
-    if (fetchError) throw new Error(`Database error: ${fetchError.message}`)
-    if (!originalData) throw new Error('Reservation not found')
+    if (fetchError) throw new Error(`Database error: ${fetchError.message}`);
+    if (!originalData) throw new Error('Reservation not found');
 
-    const now = new Date().toISOString()
+    const now = new Date().toISOString();
+    
+    // Create data object with only existing columns
     const dataToInsert = {
       place: originalData.place,
       guest_count: originalData.guest_count,
@@ -191,32 +233,36 @@ async function moveReservation(id, newStatus, rowElement = null) {
       status: newStatus,
       created_at: originalData.created_at || now,
       updated_at: now
+    };
+
+    // Only include archived_at if the column exists in your table
+    // Remove this if you don't need it
+    if (newStatus === 'cancelled') {
+      dataToInsert.archived_at = now;
     }
 
     const { error: insertError } = await supabase
       .from('completed_reservations')
-      .insert([dataToInsert])
+      .insert([dataToInsert]);
 
-    if (insertError) throw new Error(`Failed to save: ${insertError.message}`)
+    if (insertError) throw new Error(`Failed to save: ${insertError.message}`);
 
     const { error: deleteError } = await supabase
       .from('reservations')
       .delete()
-      .eq('id', id)
+      .eq('id', id);
 
-    if (deleteError) throw new Error(`Failed to remove: ${deleteError.message}`)
+    if (deleteError) throw new Error(`Failed to remove: ${deleteError.message}`);
 
-    if (rowElement) rowElement.remove()
-    return true
+    if (rowElement) rowElement.remove();
+    return true;
 
   } catch (error) {
-    console.error('Move Reservation Error:', error)
-    showToast(`Error: ${error.message}`, 'error')
-    return false
+    console.error('Move Reservation Error:', error);
+    throw error;
   }
 }
 
-// Toast notification
 function showToast(message, type = 'success') {
   const toast = document.createElement('div')
   toast.className = `toast ${type}`
@@ -226,7 +272,6 @@ function showToast(message, type = 'success') {
   setTimeout(() => toast.remove(), 3000)
 }
 
-// Load reservations
 async function loadReservations() {
   try {
     const { data, error } = await supabase
@@ -268,11 +313,9 @@ async function loadReservations() {
   }
 }
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   loadReservations()
   
-  // Add basic styles if they don't exist
   if (!document.querySelector('#reservation-styles')) {
     const style = document.createElement('style')
     style.id = 'reservation-styles'
@@ -296,11 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       .no-data, .error { text-align: center; padding: 20px; }
       .error { color: #F44336; }
-      
-      /* Overdue row styling */
-      tr[data-id] td {
-        background-color: rgba(255, 0, 0, 0.1);
-      }
+      tr[data-id] td { background-color: rgba(255, 0, 0, 0.1); }
     `
     document.head.appendChild(style)
   }
