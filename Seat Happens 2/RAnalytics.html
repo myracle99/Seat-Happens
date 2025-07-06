@@ -504,40 +504,174 @@
     });
   }
 
-  // Export functions
-  function exportToCSV() {
+    function exportToCSV() {
+    const now = new Date();
+    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const month = months[now.getMonth()];
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    let hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    const timeString = `${String(hours).padStart(2, '0')}-${minutes}${ampm}`;
+    const filename = `Rreport-${month}-${day}-${year}_${timeString}.csv`;
+
     const table = document.getElementById("reservationTable");
     const rows = table.querySelectorAll("tr");
-    let csvContent = "";
-    
+    const csv = [];
+
     rows.forEach(row => {
       if (row.style.display === 'none') return;
       
-      const rowData = [];
-      const cols = row.querySelectorAll("th, td");
-      
+      const cols = row.querySelectorAll("td, th");
+      const csvRow = [];
       cols.forEach(col => {
-        rowData.push(`"${col.textContent.trim().replace(/"/g, '""')}"`);
+        csvRow.push('"' + col.innerText.replace(/"/g, '""') + '"');
       });
-      
-      csvContent += rowData.join(",") + "\r\n";
+      csv.push(csvRow.join(","));
     });
-    
-    const date = document.getElementById('reservationDate').value || new Date().toISOString().split('T')[0];
+
+    const csvContent = csv.join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `reservations_report_${date}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   }
 
   async function exportToPDF() {
-    window.print();
-  }
+    const original = document.querySelector(".container");
+    const clone = original.cloneNode(true);
 
+    //ung style
+    clone.style.backgroundColor = "white";
+    clone.style.color = "black";
+    clone.querySelectorAll("*").forEach(el => {
+      el.style.color = "black";
+      el.style.backgroundColor = "white";
+    });
+
+    //render
+    const hiddenWrapper = document.createElement("div");
+    hiddenWrapper.style.position = "fixed";
+    hiddenWrapper.style.top = "-9999px";
+    hiddenWrapper.style.left = "0";
+    hiddenWrapper.style.width = original.offsetWidth + "px";
+    hiddenWrapper.appendChild(clone);
+    document.body.appendChild(hiddenWrapper);
+
+    const chartIDs = ['reservationChart', 'areaChart', 'guestsPerHourChart'];
+    for (let id of chartIDs) {
+      const originalCanvas = document.getElementById(id);
+      const chart = Chart.getChart(originalCanvas);
+      if (!chart) continue;
+
+      const originalOptions = JSON.parse(JSON.stringify(chart.options));
+      if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = "black";
+      if (chart.options.scales?.x?.ticks) chart.options.scales.x.ticks.color = "black";
+      if (chart.options.scales?.y?.ticks) chart.options.scales.y.ticks.color = "black";
+      if (chart.options.scales?.x?.grid) chart.options.scales.x.grid.color = "#ccc";
+      if (chart.options.scales?.y?.grid) chart.options.scales.y.grid.color = "#ccc";
+
+      chart.update();
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const chartImage = new Image();
+      chartImage.src = chart.canvas.toDataURL("image/png");
+      chartImage.style.width = "100%";
+      chartImage.style.height = "auto";
+      chartImage.style.borderRadius = "20px";
+
+      chart.options = originalOptions;
+      chart.update();
+
+      const clonedCanvas = clone.querySelector(`#${id}`);
+      if (clonedCanvas) clonedCanvas.parentNode.replaceChild(chartImage, clonedCanvas);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    //render part 2
+    const fullCanvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true
+    });
+
+    document.body.removeChild(hiddenWrapper); // clean up
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+
+    const pxPerMM = fullCanvas.width / pdfWidth;
+    const printableWidthPx = (pdfWidth - margin * 2) * pxPerMM;
+    const printableHeightPx = (pdfHeight - margin * 3) * pxPerMM;
+
+    const totalPages = Math.ceil(fullCanvas.height / printableHeightPx);
+
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) pdf.addPage();
+
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = fullCanvas.width;
+      pageCanvas.height = printableHeightPx;
+
+      const ctx = pageCanvas.getContext("2d");
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+      ctx.drawImage(
+        fullCanvas,
+        0, i * printableHeightPx,
+        fullCanvas.width, printableHeightPx,
+        0, 0,
+        fullCanvas.width, printableHeightPx
+      );
+
+      const imgData = pageCanvas.toDataURL("image/png");
+
+      pdf.addImage(
+        imgData,
+        "PNG",
+        margin,
+        margin,
+        pdfWidth - margin * 2,
+        pdfHeight - margin * 2
+      );
+
+      //pagination
+      pdf.setFontSize(10);
+      pdf.setTextColor(150);
+      pdf.text(`Page ${i + 1} of ${totalPages}`, pdfWidth / 2, pdfHeight - 5, {
+        align: 'center'
+      });
+    }
+
+    const now = new Date();
+    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const month = months[now.getMonth()];
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    let hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    const timeString = `${String(hours).padStart(2, '0')}-${minutes}${ampm}`;
+    const pdfFilename = `Rreport-${month}-${day}-${year}_${timeString}.pdf`;
+
+    pdf.save(pdfFilename);
+  }
+  
   // Popup functions
   function openPopup(item) {
     selectedRowData = item;
