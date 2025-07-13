@@ -26,14 +26,15 @@
           <thead>
             <tr>
               <th>Queue Number</th>
-              <th>Name of Customer</th>
+              <th>Name</th>
               <th>Email</th>
               <th>Phone Number</th>
-              <th>Number of Guests</th>
+              <th>No. of Guests</th>
               <th>Place</th>
               <th>Time Registered</th>
               <th>Time Served</th>
               <th>Status</th>
+              <th>Time Deleted</th>
             </tr>
           </thead>
           <tbody id="queueBody"></tbody>
@@ -105,6 +106,7 @@
             <td>${formatTimestamp(entry.createdAt)}</td>
             <td>${formatTimestamp(entry.calledAt)}</td>
             <td>${entry.status || '—'}</td>
+            <td>${formatTimestamp(entry.archivedAt)}</td>
           `;
           tr.onclick = () => openPopup(entry);
           tableBody.appendChild(tr);
@@ -131,7 +133,8 @@
       document.getElementById('popupTimestamps').innerHTML = `
         <small>
           <strong>Registered:</strong> ${formatTimestamp(entryData.createdAt)}<br>
-          <strong>Called:</strong> ${formatTimestamp(entryData.calledAt)}
+          <strong>Called:</strong> ${formatTimestamp(entryData.calledAt)}<br>
+          <strong>Deleted:</strong> ${formatTimestamp(entryData.archivedAt)}
         </small>
       `;
 

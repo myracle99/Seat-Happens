@@ -548,128 +548,176 @@
   }
 
   async function exportToPDF() {
-    const original = document.querySelector(".container");
-    const clone = original.cloneNode(true);
+    const loader = document.createElement('div');
+    loader.style.position = 'fixed';
+    loader.style.top = '0';
+    loader.style.left = '0';
+    loader.style.width = '100%';
+    loader.style.height = '100%';
+    loader.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    loader.style.display = 'flex';
+    loader.style.justifyContent = 'center';
+    loader.style.alignItems = 'center';
+    loader.style.zIndex = '9999';
+    document.body.appendChild(loader);
 
-    //ung style
-    clone.style.backgroundColor = "white";
-    clone.style.color = "black";
-    clone.querySelectorAll("*").forEach(el => {
-      el.style.color = "black";
-      el.style.backgroundColor = "white";
-    });
+    try {
+      const original = document.querySelector(".container");
+      const clone = original.cloneNode(true);
 
-    //render
-    const hiddenWrapper = document.createElement("div");
-    hiddenWrapper.style.position = "fixed";
-    hiddenWrapper.style.top = "-9999px";
-    hiddenWrapper.style.left = "0";
-    hiddenWrapper.style.width = original.offsetWidth + "px";
-    hiddenWrapper.appendChild(clone);
-    document.body.appendChild(hiddenWrapper);
-
-    const chartIDs = ['reservationChart', 'areaChart', 'guestsPerHourChart'];
-    for (let id of chartIDs) {
-      const originalCanvas = document.getElementById(id);
-      const chart = Chart.getChart(originalCanvas);
-      if (!chart) continue;
-
-      const originalOptions = JSON.parse(JSON.stringify(chart.options));
-      if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = "black";
-      if (chart.options.scales?.x?.ticks) chart.options.scales.x.ticks.color = "black";
-      if (chart.options.scales?.y?.ticks) chart.options.scales.y.ticks.color = "black";
-      if (chart.options.scales?.x?.grid) chart.options.scales.x.grid.color = "#ccc";
-      if (chart.options.scales?.y?.grid) chart.options.scales.y.grid.color = "#ccc";
-
-      chart.update();
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const chartImage = new Image();
-      chartImage.src = chart.canvas.toDataURL("image/png");
-      chartImage.style.width = "100%";
-      chartImage.style.height = "auto";
-      chartImage.style.borderRadius = "20px";
-
-      chart.options = originalOptions;
-      chart.update();
-
-      const clonedCanvas = clone.querySelector(`#${id}`);
-      if (clonedCanvas) clonedCanvas.parentNode.replaceChild(chartImage, clonedCanvas);
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    //render part 2
-    const fullCanvas = await html2canvas(clone, {
-      scale: 2,
-      useCORS: true
-    });
-
-    document.body.removeChild(hiddenWrapper); // clean up
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const margin = 10;
-
-    const pxPerMM = fullCanvas.width / pdfWidth;
-    const printableWidthPx = (pdfWidth - margin * 2) * pxPerMM;
-    const printableHeightPx = (pdfHeight - margin * 3) * pxPerMM;
-
-    const totalPages = Math.ceil(fullCanvas.height / printableHeightPx);
-
-    for (let i = 0; i < totalPages; i++) {
-      if (i > 0) pdf.addPage();
-
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = fullCanvas.width;
-      pageCanvas.height = printableHeightPx;
-
-      const ctx = pageCanvas.getContext("2d");
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-
-      ctx.drawImage(
-        fullCanvas,
-        0, i * printableHeightPx,
-        fullCanvas.width, printableHeightPx,
-        0, 0,
-        fullCanvas.width, printableHeightPx
-      );
-
-      const imgData = pageCanvas.toDataURL("image/png");
-
-      pdf.addImage(
-        imgData,
-        "PNG",
-        margin,
-        margin,
-        pdfWidth - margin * 2,
-        pdfHeight - margin * 2
-      );
-
-      //pagination
-      pdf.setFontSize(10);
-      pdf.setTextColor(150);
-      pdf.text(`Page ${i + 1} of ${totalPages}`, pdfWidth / 2, pdfHeight - 5, {
-        align: 'center'
+      // Styling override for rendering
+      clone.style.backgroundColor = "white";
+      clone.style.color = "black";
+      clone.querySelectorAll("*").forEach(el => {
+        el.style.color = "black";
+        el.style.backgroundColor = "white";
       });
+
+      // Prepare hidden wrapper for rendering
+      const hiddenWrapper = document.createElement("div");
+      hiddenWrapper.style.position = "fixed";
+      hiddenWrapper.style.top = "-9999px";
+      hiddenWrapper.style.left = "0";
+      hiddenWrapper.style.width = original.offsetWidth + "px";
+      hiddenWrapper.appendChild(clone);
+      document.body.appendChild(hiddenWrapper);
+
+      // Replace charts with static image versions
+      const chartIDs = ['reservationChart', 'areaChart', 'guestsPerHourChart'];
+      for (let id of chartIDs) {
+        const originalCanvas = document.getElementById(id);
+        const chart = Chart.getChart(originalCanvas);
+        if (!chart) continue;
+
+        const originalOptions = JSON.parse(JSON.stringify(chart.options));
+        if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = "black";
+        if (chart.options.scales?.x?.ticks) chart.options.scales.x.ticks.color = "black";
+        if (chart.options.scales?.y?.ticks) chart.options.scales.y.ticks.color = "black";
+        if (chart.options.scales?.x?.grid) chart.options.scales.x.grid.color = "#ccc";
+        if (chart.options.scales?.y?.grid) chart.options.scales.y.grid.color = "#ccc";
+
+        chart.update();
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const chartImage = new Image();
+        chartImage.src = chart.canvas.toDataURL("image/png");
+        chartImage.style.width = "100%";
+        chartImage.style.height = "auto";
+        chartImage.style.borderRadius = "20px";
+
+        chart.options = originalOptions;
+        chart.update();
+
+        const clonedCanvas = clone.querySelector(`#${id}`);
+        if (clonedCanvas) clonedCanvas.parentNode.replaceChild(chartImage, clonedCanvas);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Create canvas from the DOM
+      const fullCanvas = await html2canvas(clone, { 
+        scale: 2, 
+        useCORS: true,
+        logging: true,
+        allowTaint: true
+      });
+      document.body.removeChild(hiddenWrapper);
+
+      const pdf = new jspdf.jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const pxPerMM = fullCanvas.width / pdfWidth;
+      const printableWidthPx = (pdfWidth - margin * 2) * pxPerMM;
+      const printableHeightPx = (pdfHeight - margin * 3) * pxPerMM;
+
+      const totalPages = Math.ceil(fullCanvas.height / printableHeightPx);
+
+      // Date/time generation (same format as QAnalytics)
+      const now = new Date();
+      const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+      const month = months[now.getMonth()];
+      const day = String(now.getDate()).padStart(2, '0');
+      const year = now.getFullYear();
+      let hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      const formattedTime = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+      const formattedDate = `${month} ${day}, ${year}`;
+      const footerText = `report generated on ${formattedDate} at ${formattedTime}`;
+
+      // Load logo image (same as QAnalytics)
+      const logoImg = new Image();
+      logoImg.src = "chescafe logo.png";
+      await new Promise(resolve => {
+        logoImg.onload = resolve;
+        logoImg.onerror = resolve; // Continue even if logo fails
+      });
+
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) pdf.addPage();
+
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = fullCanvas.width;
+        pageCanvas.height = printableHeightPx;
+
+        const ctx = pageCanvas.getContext("2d");
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+        ctx.drawImage(
+          fullCanvas,
+          0, i * printableHeightPx,
+          fullCanvas.width, printableHeightPx,
+          0, 0,
+          fullCanvas.width, printableHeightPx
+        );
+
+        const imgData = pageCanvas.toDataURL("image/png");
+        const yOffset = (i === 0) ? 30 : margin;
+        pdf.addImage(imgData, "PNG", margin, yOffset, pdfWidth - margin * 2, pdfHeight - yOffset - margin);
+
+        // Add header only on first page (same as QAnalytics)
+        if (i === 0) {
+          const logoWidth = 20;
+          const logoHeight = 20;
+          const paddingBetween = 5;
+
+          const titleText = "Chess Cafe Reservation Report"; // Changed from Queue to Reservation
+          const fontSize = 16;
+
+          pdf.setFontSize(fontSize);
+          const textWidth = pdf.getTextWidth(titleText);
+
+          const totalWidth = logoWidth + paddingBetween + textWidth;
+          const startX = (pdfWidth - totalWidth) / 2;
+          const logoY = 12;
+          const textY = logoY + logoHeight / 2 + 2;
+
+          if (logoImg.src && logoImg.complete) {
+            pdf.addImage(logoImg, "PNG", startX, logoY, logoWidth, logoHeight);
+          }
+
+          pdf.setTextColor(0);
+          pdf.text(titleText, startX + logoWidth + paddingBetween, textY);
+        }
+
+        // Footer content (same as QAnalytics)
+        pdf.setFontSize(10);
+        pdf.setTextColor(120);
+        pdf.text(footerText, margin, pdfHeight - 5, { align: "left" });
+        pdf.text(`Page ${i + 1} of ${totalPages}`, pdfWidth - margin - 20, pdfHeight - 5, { align: "right" });
+      }
+
+      const filename = `Chess-Cafe-Rreport-${month}-${day}-${year}_${String(hours).padStart(2, '0')}-${minutes}${ampm}.pdf`;
+      pdf.save(filename);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      document.body.removeChild(loader);
     }
-
-    const now = new Date();
-    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const month = months[now.getMonth()];
-    const day = String(now.getDate()).padStart(2, '0');
-    const year = now.getFullYear();
-    let hours = now.getHours();
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    const timeString = `${String(hours).padStart(2, '0')}-${minutes}${ampm}`;
-    const pdfFilename = `Rreport-${month}-${day}-${year}_${timeString}.pdf`;
-
-    pdf.save(pdfFilename);
   }
   
   // Popup functions

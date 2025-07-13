@@ -80,61 +80,55 @@
 
     // Load archived reservations from Supabase
     async function loadArchived() {
-      const tbody = document.getElementById('archivedBody');
-      tbody.innerHTML = '<tr><td colspan="8"><div class="loading">Loading...</div></td></tr>';
-      const date = document.getElementById('archiveDate').value;
-      
-      try {
-        let query = window.supabase
-          .from('archived_reservations')
-          .select('*')
-          .order('archived_at', { ascending: false });
+  const tbody = document.getElementById('archivedBody');
+  tbody.innerHTML = '<tr><td colspan="8"><div class="loading">Loading...</div></td></tr>';
+  const date = document.getElementById('archiveDate').value;
+  
+  try {
+    let query = window.supabase
+      .from('archived_reservations')
+      .select('*')
+      .order('archived_at', { ascending: false });
 
-        if (date) {
-          const startDate = new Date(date);
-          const endDate = new Date(startDate);
-          endDate.setDate(endDate.getDate() + 1);
-          
-          query = query
-            .gte('archived_at', startDate.toISOString())
-            .lt('archived_at', endDate.toISOString());
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        tbody.innerHTML = '';
-
-        if (!data || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8">No archived reservations found for selected day.</td></tr>';
-          return;
-        }
-
-        data.forEach((reservation) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${reservation.name || 'N/A'}</td>
-            <td>${reservation.email || 'N/A'}</td>
-            <td>${reservation.phone || 'N/A'}</td>
-            <td>${reservation.guest_count || '0'}</td>
-            <td>${reservation.place || 'N/A'}</td>
-            <td>${reservation.reservation_time || 'N/A'}</td>
-            <td>${reservation.status || 'N/A'}</td>
-            <td>${new Date(reservation.archived_at).toLocaleString()}</td>
-          `;
-          tr.classList.add('highlight-row');
-          tr.onclick = () => openPopup(reservation);
-          tbody.appendChild(tr);
-        });
-
-      } catch (error) {
-        console.error('Error loading archived reservations:', error);
-        document.getElementById('archivedBody').innerHTML = `
-          <tr><td colspan="8">Error loading archived reservations. Please try again.</td></tr>
-        `;
-      }
+    if (date) {
+      query = query.eq('reservation_date', date);
     }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    tbody.innerHTML = '';
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8">No archived reservations found for selected date.</td></tr>';
+      return;
+    }
+
+    data.forEach((reservation) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${reservation.name || 'N/A'}</td>
+        <td>${reservation.email || 'N/A'}</td>
+        <td>${reservation.phone || 'N/A'}</td>
+        <td>${reservation.guest_count || '0'}</td>
+        <td>${reservation.place || 'N/A'}</td>
+        <td>${reservation.reservation_time || 'N/A'}</td>
+        <td>${reservation.status || 'N/A'}</td>
+        <td>${new Date(reservation.archived_at).toLocaleString()}</td>
+      `;
+      tr.classList.add('highlight-row');
+      tr.onclick = () => openPopup(reservation);
+      tbody.appendChild(tr);
+    });
+
+  } catch (error) {
+    console.error('Error loading archived reservations:', error);
+    document.getElementById('archivedBody').innerHTML = `
+      <tr><td colspan="8">Error loading archived reservations. Please try again.</td></tr>
+    `;
+  }
+}
 
     function openPopup(reservation) {
       selectedArchive = reservation;
@@ -147,7 +141,6 @@
         <p><strong>Area:</strong> ${reservation.place || 'N/A'}</p>
         <p><strong>Time:</strong> ${reservation.reservation_time || 'N/A'}</p>
         <p><strong>Status:</strong> ${reservation.status || 'N/A'}</p>
-        <p><strong>Archived:</strong> ${new Date(reservation.archived_at).toLocaleString()}</p>
       `;
       
       document.getElementById('popup').style.display = 'block';
