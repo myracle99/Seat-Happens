@@ -10,13 +10,9 @@
   <section class="page" style="background-image: url('756b435b-1f0c-4514-a63a-4a0fc3017407.png');">
     <header>
       <img src="chescafe logo.png" alt="Ches Cafe Logo" class="logo" />
-  <div class="top-icons">
-
-  <a href="homepage.html">
-    <img src="home icon.png" alt="Home" class="icon home-icon">
-  </a>
-</div>
-
+      <a href="homepage.html" class="home-link">
+        <img src="home icon.png" alt="Home Icon" class="home-icon" />
+      </a>
     </header>
 
     <main>
@@ -34,26 +30,22 @@
       </div>
     </main>
 
-    <footer>
+   
+  </section>
+ <footer>
       <p><img src="location icon.png" alt="Location Icon" /> <span data-translate="address">Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</span></p>
       <p><img src="call icon.png" alt="Phone Icon" /> <span data-translate="phone">0945 306 6376</span></p>
       <p><img src="time icon.png" alt="Clock Icon" /> <span data-translate="hours">Monday-Sunday 10:00 AM - 10:00 PM</span></p>
     </footer>
-  </section>
-
-  <!-- Include the translator script -->
   <script src="langModal.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
     const guests = parseInt(params.get('guests')) || parseInt(localStorage.getItem('guestCount')) || 2;
     const date = params.get('date') || localStorage.getItem('selectedDate');
 
-    // Wait for translator to be initialized
     window.addEventListener('DOMContentLoaded', () => {
-      // Update guest count with proper translation
       updateGuestCount();
-      
-      // Update date display
+
       if (date) {
         const d = new Date(date);
         const options = { weekday: 'long', month: 'long', day: 'numeric' };
@@ -69,7 +61,6 @@
         const guestText = window.translator.getGuestText(guests, baseLang);
         guestCountElement.textContent = guestText;
       } else {
-        // Fallback for English
         let guestText = "you";
         if (guests === 1) guestText = "you";
         else if (guests === 2) guestText = "the 2 of you";
@@ -82,8 +73,7 @@
       localStorage.setItem("selectedPlace", place);
       localStorage.setItem("guestCount", guests);
       if (date) localStorage.setItem("selectedDate", date);
-      
-      // Preserve language selection
+
       const currentLang = window.translator ? window.translator.currentLang : 'en-US';
       window.location.href = `time.html?lang=${currentLang}`;
     }

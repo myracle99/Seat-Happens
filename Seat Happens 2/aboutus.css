@@ -7,11 +7,20 @@ html, body {
   text-align: center;
 }
 
+.page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+}
+
 body {
   margin: 0;
   background: linear-gradient(180deg, #000000, #4d0000); /* dark to deep red */
   color: white;
-  overflow-x: hidden;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -43,7 +52,6 @@ header {
 
 h1 {
   font-size: 36px;
-  margin-top: 30px;
   letter-spacing: 2px;
   color:rgb(248, 13, 13);
 }
@@ -121,7 +129,7 @@ h1 {
   border-radius: 30px;
   box-shadow: 0 5px 0 darkgreen;
   transition: transform 0.2s;
-  margin-bottom: 40px;
+  margin-bottom: 90px;
 }
 
 .btn:hover {
@@ -133,27 +141,21 @@ footer {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 40px;
+  gap: 30px;
+  font-family: Arial, sans-serif;
   font-size: 14px;
   color: #fff;
-  padding: 20px 10px;
+  padding: 15px 10px;
   text-align: center;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.4);
   border-top: 1px solid rgba(255, 255, 255, 0.2);
-  margin-top: auto;
-  flex-shrink: 0;
-}
-
-footer div {
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 
 footer img {
   width: 16px;
   vertical-align: middle;
 }
+
 
 /* ENLARGED IMAGE MODAL */
 .modal {

@@ -5,60 +5,56 @@ body, html {
   padding: 0;
   font-family: sans-serif;
   color: white;
-  background-image: url('webiste\ bg.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: linear-gradient(180deg, #000000, #4d0000); /* black to deep red */
   height: 100%;
+  overflow-x: hidden;
 }
 
 .page {
-  position: relative;
   min-height: 100vh;
-  background: no-repeat center center/cover;
   display: flex;
   flex-direction: column;
-  z-index: 0;
+  padding: 20px;
 }
 
 .page::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7); /* dark overlay for contrast */
   z-index: 1;
 }
 
-header, main, footer {
+main, footer {
   position: relative;
   z-index: 2;
 }
 
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
 .logo {
   width: 120px;
-  margin: 20px;
 }
 
 
-
-.top-icons {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  gap: 15px; /* space between icons */
-  z-index: 999; /* ensures it's on top of other elements */
+.home-link {
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
 }
-
-.top-icons .icon {
+.home-icon {
   width: 40px;
-  height: 40px;
+  height: auto;
   cursor: pointer;
 }
 
 
 .card {
-  margin: 80px auto;
+  margin: 40px auto;
   padding: 40px 30px;
   background: rgba(0, 0, 0, 0.5);
   border-radius: 20px;
@@ -111,24 +107,19 @@ header, main, footer {
 
 footer {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 30px;
+  font-family: Arial, sans-serif;
   font-size: 14px;
-  padding: 20px;
-  color: white;
-  gap: 10px;
-}
-
-footer p {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
+  color: #fff;
+  padding: 15px 10px;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 footer img {
   width: 16px;
-  height: 16px;
-  margin-right: 6px;
+  vertical-align: middle;
 }

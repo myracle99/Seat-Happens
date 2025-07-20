@@ -18,6 +18,14 @@ body, html {
   padding: 20px;
 }
 
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
 header {
   display: flex;
   justify-content: space-between;

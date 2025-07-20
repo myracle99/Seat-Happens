@@ -90,7 +90,8 @@ header {
   justify-content: center;
   gap: 20px;
   flex-wrap: wrap;
-  margin-top: 75px; /* Push buttons slightly lower */
+  margin-top: 20px; /* Push buttons slightly lower */
+  margin-bottom: 40px;
 }
 
 .btn {
@@ -124,6 +125,7 @@ footer {
   justify-content: center;
   align-items: center;
   gap: 30px;
+  font-family: Arial, sans-serif;
   font-size: 14px;
   color: #fff;
   padding: 15px 10px;

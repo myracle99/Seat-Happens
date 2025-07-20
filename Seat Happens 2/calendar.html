@@ -81,27 +81,21 @@
     /* Footer styling - single line with spaced items */
     footer {
       display: flex;
-      justify-content: space-around;
+      justify-content: center;
       align-items: center;
-      flex-wrap: wrap;
+      gap: 30px;
+      font-family: Arial, sans-serif;
       font-size: 14px;
-      margin-top: 20px;
-      color: white;
-      gap: 10px;
-    }
-
-    footer p {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      white-space: nowrap;
+      color: #fff;
+      padding: 15px 10px;
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     footer img {
       width: 16px;
-      height: 16px;
       vertical-align: middle;
-      margin-right: 6px;
     }
   </style>
 </head>
@@ -128,13 +122,12 @@
         </div>
       </div>
     </main>
-    <footer>
+  </section>
+  <footer>
       <p><img src="location icon.png" alt="Location Icon" /> <span data-translate="address">Tanay-Pililla Boundary, Manila East Road 1910 Pililla, Philippines</span></p>
       <p><img src="call icon.png" alt="Phone Icon" /> <span data-translate="phone">0945 306 6376</span></p>
       <p><img src="time icon.png" alt="Clock Icon" /> <span data-translate="hours">Monday-Sunday 10:00 AM - 10:00 PM</span></p>
     </footer>
-  </section>
-
   <script src="langModal.js"></script>
 <script>
   const params = new URLSearchParams(window.location.search);
