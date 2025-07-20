@@ -3,11 +3,9 @@ body, html {
   padding: 0;
   font-family: sans-serif;
   color: white;
-  background-image: url('webiste\ bg.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: linear-gradient(180deg, #000000, #4d0000); /* black to deep red */
   height: 100%;
+  overflow-x: hidden;
 }
 
 

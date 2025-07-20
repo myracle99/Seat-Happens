@@ -1,11 +1,15 @@
 
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: url('webiste\ bg.jpg') no-repeat center center fixed;
-    background-size: cover;
-    color: white;
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #000000, #4d0000); /* dark to deep red */
+  color: white;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
+
 .logo, .home-icon, .user-icon {
     position: absolute;
     top: 20px;

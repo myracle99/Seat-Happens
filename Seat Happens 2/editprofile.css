@@ -1,11 +1,8 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background-color: black;
-  background-image: url('webiste\ bg.jpg'); /* Optional */
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
+  background: linear-gradient(to right, #1e1e1e, #3a0d0d); /* Dark grey to deep red */
+  color: white;
 }
 
 .top-bar {

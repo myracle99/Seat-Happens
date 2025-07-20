@@ -10,8 +10,8 @@ body, html {
   height: 100%;
   font-family: 'Arial', sans-serif;
   color: white;
-  background: url('webiste\ bg.jpg') no-repeat center center fixed;
-  background-size: cover;
+  background: linear-gradient(180deg, #000000, #4d0000); /* dark to deep red gradient */
+  overflow-x: hidden;
 }
 
 .container {

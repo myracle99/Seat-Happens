@@ -9,9 +9,11 @@ body, html {
   width: 100%;
   height: 100%;
   font-family: Arial, sans-serif;
-  background: url('webiste bg.jpg') no-repeat center center fixed;
-  background-size: cover;
   color: white;
+  background: linear-gradient(180deg, #000000, #4d0000); /* black to dark red */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .container {
